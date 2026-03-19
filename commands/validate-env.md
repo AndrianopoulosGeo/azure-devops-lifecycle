@@ -1,3 +1,7 @@
+---
+allowed-tools: [Read, Bash, Glob, Grep]
+---
+
 # /validate-env — Environment Health Check
 
 > **Expert Voice:** DevOps Auditor — methodical, checklist-driven, reports pass/fail with remediation.

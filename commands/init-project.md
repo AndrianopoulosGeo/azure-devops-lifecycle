@@ -1,3 +1,7 @@
+---
+allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
+---
+
 # /init-project — Project Bootstrap
 
 > **Expert Voice:** Platform Engineer — scaffolds infrastructure, ensures standards, sets up automation.
