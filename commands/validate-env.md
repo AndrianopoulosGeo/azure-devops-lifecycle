@@ -1,0 +1,179 @@
+# /validate-env — Environment Health Check
+
+> **Expert Voice:** DevOps Auditor — methodical, checklist-driven, reports pass/fail with remediation.
+
+You are a DevOps Auditor running a comprehensive health check on the project setup. Check every aspect of the configuration, report results clearly, and provide actionable remediation for any failures.
+
+## Load Configuration
+
+First, attempt to load `.env.claude`:
+
+```bash
+if [ ! -f .env.claude ]; then
+  echo "[FAIL] .env.claude not found"
+  echo "  → Create from template: cp templates/.env.claude.example .env.claude"
+  exit 1
+fi
+```
+
+Then load all fields:
+
+```bash
+export AZURE_DEVOPS_PAT=$(grep AZURE_DEVOPS_PAT .env.claude | cut -d '=' -f2)
+export AZURE_DEVOPS_ORG=$(grep AZURE_DEVOPS_ORG .env.claude | cut -d '=' -f2)
+export AZURE_DEVOPS_PROJECT=$(grep AZURE_DEVOPS_PROJECT .env.claude | cut -d '=' -f2)
+export DEPLOY_TARGET=$(grep DEPLOY_TARGET .env.claude | cut -d '=' -f2)
+export TECH_STACK=$(grep TECH_STACK .env.claude | cut -d '=' -f2)
+export STAGING_URL=$(grep STAGING_URL .env.claude | cut -d '=' -f2)
+export PRODUCTION_URL=$(grep PRODUCTION_URL .env.claude | cut -d '=' -f2)
+export BRANCH_STRATEGY=$(grep BRANCH_STRATEGY .env.claude | cut -d '=' -f2)
+export STAGING_PIPELINE_ID=$(grep STAGING_PIPELINE_ID .env.claude | cut -d '=' -f2)
+export PRODUCTION_PIPELINE_ID=$(grep PRODUCTION_PIPELINE_ID .env.claude | cut -d '=' -f2)
+```
+
+## Checks
+
+Run ALL checks, even if earlier ones fail. Collect all results and present them together at the end.
+
+### 1. Configuration File Checks
+
+| Check | Command | Pass | Fail |
+|-------|---------|------|------|
+| `.env.claude` exists | `test -f .env.claude` | [PASS] | [FAIL] → Create from template |
+| `AZURE_DEVOPS_ORG` set | `test -n "$AZURE_DEVOPS_ORG"` | [PASS] | [FAIL] → Add to .env.claude |
+| `AZURE_DEVOPS_PROJECT` set | `test -n "$AZURE_DEVOPS_PROJECT"` | [PASS] | [FAIL] → Add to .env.claude |
+| `AZURE_DEVOPS_PAT` set | `test -n "$AZURE_DEVOPS_PAT"` | [PASS] | [FAIL] → Add to .env.claude |
+| `DEPLOY_TARGET` valid | Value is one of: hetzner, azure, vercel | [PASS] | [FAIL] → Must be hetzner\|azure\|vercel |
+| `TECH_STACK` valid | Value is one of: nextjs, dotnet, python | [PASS] | [FAIL] → Must be nextjs\|dotnet\|python |
+
+### 2. Azure DevOps Connection
+
+```bash
+export AZURE_DEVOPS_EXT_PAT=$AZURE_DEVOPS_PAT
+az devops configure --defaults organization=https://dev.azure.com/$AZURE_DEVOPS_ORG project="$AZURE_DEVOPS_PROJECT"
+az devops project show --project "$AZURE_DEVOPS_PROJECT" --output table 2>&1
+```
+
+| Check | Pass | Fail |
+|-------|------|------|
+| PAT authenticates | [PASS] | [FAIL] → Check PAT token permissions and expiry |
+| Project accessible | [PASS] | [FAIL] → Check project name matches Azure DevOps |
+
+### 3. Git Branch Checks
+
+```bash
+git branch -a
+```
+
+| Check | Pass | Fail |
+|-------|------|------|
+| `master` branch exists | [PASS] | [FAIL] → Run: git branch master |
+| `develop` branch exists | [PASS] | [FAIL] → Run: git branch develop |
+| `staging` branch exists | [PASS] | [FAIL] → Run: git branch staging OR run /init-project |
+
+### 4. Wiki Checks
+
+| Check | Pass | Fail |
+|-------|------|------|
+| `docs/wiki/` exists | [PASS] | [FAIL] → Run /init-project |
+| `docs/wiki/index.md` exists | [PASS] | [FAIL] → Run /init-project |
+| Wiki has content (not just templates) | [PASS] Count: N/9 populated | [WARN] → Run /wiki auto to populate |
+
+To check if a wiki file is populated vs template, read the `status` field in the frontmatter:
+- `template` = not populated
+- `draft` or `reviewed` = has content
+
+### 5. Pipeline Checks
+
+| Check | Pass | Fail |
+|-------|------|------|
+| `azure-pipelines.yml` exists | [PASS] | [FAIL] → Run /init-project |
+| Pipeline matches DEPLOY_TARGET | [PASS] | [WARN] → Pipeline may be stale, regenerate with /init-project |
+
+If `STAGING_PIPELINE_ID` is set in `.env.claude`, also verify it exists in Azure DevOps:
+```bash
+az pipelines show --id $STAGING_PIPELINE_ID --output table 2>&1
+```
+Same for `PRODUCTION_PIPELINE_ID`. If the API call fails, report:
+> [FAIL] Staging pipeline ID $STAGING_PIPELINE_ID not found in Azure DevOps → Verify pipeline exists or clear STAGING_PIPELINE_ID in .env.claude
+
+### 6. CLAUDE.md Checks
+
+| Check | Pass | Fail |
+|-------|------|------|
+| `CLAUDE.md` exists | [PASS] | [FAIL] → Run /init-project |
+| Wiki references present | Search for "Project Wiki Reference" | [FAIL] → Run /init-project |
+
+### 7. .gitignore Check
+
+| Check | Pass | Fail |
+|-------|------|------|
+| `.env.claude` is gitignored | `grep -q '.env.claude' .gitignore` | [WARN] → Add `.env.claude` to .gitignore to prevent secret leaks |
+
+### 8. State File Check
+
+| Check | Pass | Fail |
+|-------|------|------|
+| `.state.md` exists | [PASS] | [WARN] → Run /init-project to create state file |
+
+## Output Format
+
+Present all results in a clean table:
+
+```
+/validate-env — Environment Health Check
+==========================================
+Project: $AZURE_DEVOPS_PROJECT
+Org:     https://dev.azure.com/$AZURE_DEVOPS_ORG
+Target:  $DEPLOY_TARGET ($TECH_STACK)
+
+Configuration
+  [PASS] .env.claude exists
+  [PASS] All required fields present
+  [PASS] DEPLOY_TARGET=hetzner (valid)
+  [PASS] TECH_STACK=nextjs (valid)
+
+Azure DevOps
+  [PASS] PAT token authenticates
+  [PASS] Project "MDT dynamics" accessible
+
+Git Branches
+  [PASS] master exists
+  [PASS] develop exists
+  [FAIL] staging missing → Run: git branch staging
+
+Wiki (5/9 populated)
+  [PASS] docs/wiki/ exists
+  [PASS] architecture.md — reviewed
+  [PASS] testing.md — draft
+  [WARN] api-reference.md — template (not populated)
+  [WARN] data-model.md — template (not populated)
+  [WARN] services.md — template (not populated)
+  [WARN] configuration.md — template (not populated)
+
+Pipeline
+  [PASS] azure-pipelines.yml exists
+  [PASS] Matches DEPLOY_TARGET=hetzner
+
+CLAUDE.md
+  [PASS] CLAUDE.md exists
+  [PASS] Wiki references present
+
+State
+  [PASS] .state.md exists
+
+Security
+  [PASS] .env.claude is gitignored
+
+==========================================
+Result: 14 PASS | 1 FAIL | 4 WARN
+
+Action Required:
+  1. [FAIL] Create staging branch: git branch staging
+  2. [WARN] Populate wiki sections: /wiki auto
+```
+
+If all checks pass, end with:
+```
+All checks passed. Environment is ready for development.
+```
