@@ -19,9 +19,12 @@
 | File | Action | Responsibility |
 |------|--------|---------------|
 | `commands/_shared/load-config.md` | Create | Shared config-loading instructions snippet sourced by all commands |
+| `commands/_shared/state-management.md` | Create | Shared state machine pattern — read/write `.state.md` |
 | `commands/init-project.md` | Create | Bootstrap command: scaffold wiki, generate pipeline, update CLAUDE.md |
 | `commands/validate-env.md` | Create | Health check command: verify repo setup is complete and correct |
+| `commands/next.md` | Create | Auto-advance command — reads `.state.md` and runs next step in track |
 | `templates/.env.claude.example` | Exists | Reference schema (already created) |
+| `templates/.state.md.example` | Create | State machine template with all fields |
 | `templates/wiki/*.md` | Exists | Wiki templates (already created, 9 files) |
 | `templates/pipelines/*.yml` | Exists | Pipeline templates (already created, 3 files) |
 | `templates/claude-md-wiki-block.md` | Create | CLAUDE.md snippet template for wiki references |
@@ -93,7 +96,270 @@ git commit -m "feat(config): add shared config loading pattern for .env.claude"
 
 ---
 
-## Task 2: Create CLAUDE.md Wiki Reference Template
+## Task 2: Create State Machine Pattern and Template
+
+**Files:**
+- Create: `commands/_shared/state-management.md`
+- Create: `templates/.state.md.example`
+
+The state machine is inspired by GSD's `.planning/STATE.md` pattern. Every lifecycle command reads `.state.md` first (to know where we are) and writes it last (to record what happened). This enables session continuity, crash recovery, and auto-advance via `/next`.
+
+- [ ] **Step 1: Create the state template**
+
+Write to `templates/.state.md.example`:
+
+```markdown
+# Project State
+
+> Auto-managed by lifecycle commands. Do not edit manually unless recovering from a failure.
+
+## Current Work
+
+| Field | Value |
+|-------|-------|
+| track | — |
+| step | — |
+| branch | — |
+| ticket_id | — |
+| started_at | — |
+| last_command | — |
+| last_updated | — |
+
+## Status
+
+| Field | Value |
+|-------|-------|
+| status | idle |
+| blockers | none |
+| next_command | — |
+
+## History
+
+<!-- Appended by each command -->
+```
+
+**Field definitions:**
+- `track`: `feature`, `quick-fix`, `hotfix`, or `idle`
+- `step`: Current step in the track (e.g., `develop`, `staging`, `release`)
+- `branch`: Active working branch name
+- `ticket_id`: Azure DevOps work item ID being worked on
+- `started_at`: ISO timestamp when the track started
+- `last_command`: Last command that ran (e.g., `/develop`)
+- `last_updated`: ISO timestamp of last state change
+- `status`: `idle`, `in-progress`, `blocked`, `awaiting-review`, `ready-to-promote`
+- `blockers`: Description of what's blocking, or `none`
+- `next_command`: The command that should run next (used by `/next`)
+
+- [ ] **Step 2: Create the shared state management instructions**
+
+Write to `commands/_shared/state-management.md`:
+
+```markdown
+## State Management (source this in every lifecycle command)
+
+### Reading State
+
+At the START of every lifecycle command (`/feature`, `/develop`, `/quick-fix`, `/hotfix`, `/staging`, `/release`):
+
+1. Check if `.state.md` exists at the repository root
+2. If it exists, read the current state:
+   ```bash
+   # Quick state check
+   grep -A1 "track" .state.md | tail -1 | awk '{print $NF}'
+   grep -A1 "step" .state.md | tail -1 | awk '{print $NF}'
+   grep -A1 "status" .state.md | tail -1 | awk '{print $NF}'
+   ```
+3. If the state shows a different track is in progress, WARN the user:
+   > "There's already a [track] in progress on branch [branch] (ticket #[id]). Do you want to continue that work, or start fresh?"
+4. If `.state.md` doesn't exist, create it from the template with status `idle`
+
+### Writing State
+
+At the END of every lifecycle command, update `.state.md`:
+
+1. Update the `Current Work` table with current values
+2. Update `Status` table — set `status`, clear/set `blockers`, set `next_command`
+3. Append a line to the `History` section:
+   ```markdown
+   - [YYYY-MM-DD HH:MM] `/command-name` — status: result (brief summary)
+   ```
+
+### Track → Step → Next Command Mapping
+
+| Track | Step Sequence | Next Command |
+|-------|--------------|-------------|
+| feature | feature → develop → staging → release → idle | `/develop` → `/staging` → `/release` → done |
+| quick-fix | quick-fix → staging → release → idle | `/staging` → `/release` → done |
+| hotfix | hotfix → idle | done |
+
+### Status Values
+
+| Status | Meaning | Allowed Next Actions |
+|--------|---------|---------------------|
+| `idle` | No work in progress | Start any track |
+| `in-progress` | Command is currently running | Wait or resume |
+| `blocked` | Cannot proceed, needs intervention | Fix blocker, then `/next` |
+| `awaiting-review` | Code review or approval needed | Review, then `/next` |
+| `ready-to-promote` | Ready for next environment | `/staging` or `/release` |
+```
+
+- [ ] **Step 3: Verify both files created**
+
+Run: `ls -la commands/_shared/ templates/.state.md.example`
+Expected: Both files listed.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add commands/_shared/state-management.md templates/.state.md.example
+git commit -m "feat(state): add centralized state machine pattern (.state.md)"
+```
+
+---
+
+## Task 3: Create `/next` Auto-Advance Command
+
+**Files:**
+- Create: `commands/next.md`
+
+This command reads `.state.md` and automatically runs the next command in the current track. Inspired by GSD's `/gsd:next`.
+
+- [ ] **Step 1: Write the `/next` command**
+
+Write to `commands/next.md`:
+
+```markdown
+---
+allowed-tools: [Read, Bash, Skill]
+---
+
+# /next — Auto-Advance to Next Step
+
+> **Expert Voice:** Workflow Orchestrator — reads state, determines next action, hands off to the right command.
+
+You are a workflow orchestrator. Your ONLY job is to read the current project state and invoke the next command in the pipeline. You do NOT implement anything yourself.
+
+## Step 1: Read State
+
+Read `.state.md` from the repository root:
+
+```bash
+cat .state.md
+```
+
+If `.state.md` does not exist:
+> "No active workflow. Start one with `/feature`, `/quick-fix`, or `/hotfix`."
+Stop.
+
+## Step 2: Determine Next Action
+
+Parse the state fields:
+- `track`: Which pipeline are we in?
+- `step`: What was the last completed step?
+- `status`: Are we blocked or ready?
+- `next_command`: What should run next?
+
+### Decision Matrix
+
+| Status | Action |
+|--------|--------|
+| `idle` | "No active workflow. Start one with `/feature`, `/quick-fix`, or `/hotfix`." — Stop. |
+| `blocked` | "Workflow is blocked: [blockers]. Resolve the issue and run `/next` again." — Stop. |
+| `awaiting-review` | "Step [step] is awaiting review. Complete the review and run `/next` again." — Stop. |
+| `in-progress` | "Step [step] is still in progress. Let it complete or resume with `/[step]`." — Stop. |
+| `ready-to-promote` | Read `next_command` and invoke it. |
+
+### Track Routing
+
+If `next_command` is set and status is `ready-to-promote`:
+
+| next_command | Action |
+|-------------|--------|
+| `/develop` | Invoke the Skill tool with skill: "develop" |
+| `/staging` | Invoke the Skill tool with skill: "staging" |
+| `/release` | Invoke the Skill tool with skill: "release" |
+| `done` | Report: "Workflow complete! Track: [track], Ticket: #[ticket_id]. State reset to idle." Then update `.state.md` to idle. |
+
+## Step 3: Report
+
+Before invoking the next command, print:
+```
+/next — Auto-advancing workflow
+  Track: [track]
+  Completed: [step]
+  Next: [next_command]
+  Branch: [branch]
+  Ticket: #[ticket_id]
+```
+
+Then invoke the next command.
+```
+
+- [ ] **Step 2: Verify the file**
+
+Run: `wc -l commands/next.md`
+Expected: ~70-80 lines
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add commands/next.md
+git commit -m "feat(commands): add /next auto-advance command"
+```
+
+---
+
+## Task 4: Add `allowed-tools` Frontmatter to Commands
+
+**Files:**
+- Modify: `commands/init-project.md` (after Task 5 creates it)
+- Modify: `commands/validate-env.md` (after Task 6 creates it)
+- Modify: `commands/next.md` (already has it from Task 3)
+
+This is applied AFTER the commands are created (Tasks 5-6). Each command gets YAML frontmatter restricting which tools it can use. This prevents commands from doing things outside their scope (e.g., `/validate-env` shouldn't write code).
+
+- [ ] **Step 1: Add frontmatter to `/init-project`**
+
+Add to the top of `commands/init-project.md`:
+```yaml
+---
+allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
+---
+```
+
+Rationale: `/init-project` needs to create files (Write), modify CLAUDE.md (Edit), run git/az CLI (Bash), and find existing files (Glob/Grep). It does NOT need WebSearch, Agent, or Skill.
+
+- [ ] **Step 2: Add frontmatter to `/validate-env`**
+
+Add to the top of `commands/validate-env.md`:
+```yaml
+---
+allowed-tools: [Read, Bash, Glob, Grep]
+---
+```
+
+Rationale: `/validate-env` is read-only — it checks things but never modifies them. No Write, Edit, Agent, or Skill.
+
+- [ ] **Step 3: Verify all three commands have frontmatter**
+
+```bash
+head -3 commands/init-project.md commands/validate-env.md commands/next.md
+```
+
+Expected: Each file starts with `---` followed by `allowed-tools:`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add commands/init-project.md commands/validate-env.md
+git commit -m "feat(commands): add allowed-tools frontmatter for tool restrictions"
+```
+
+**Note:** This task depends on Tasks 5 and 6 completing first. If using subagent-driven execution, sequence accordingly.
+
+---
+
+## Task 5: Create CLAUDE.md Wiki Reference Template
 
 **Files:**
 - Create: `templates/claude-md-wiki-block.md`
@@ -135,7 +401,7 @@ git commit -m "feat(templates): add CLAUDE.md wiki reference block template"
 
 ---
 
-## Task 3: Create `/init-project` Command
+## Task 6: Create `/init-project` Command
 
 **Files:**
 - Create: `commands/init-project.md`
@@ -275,13 +541,17 @@ Next steps:
 4. Start developing with /feature or /quick-fix
 ```
 
-## Step 8: Commit
+## Step 8: Initialize State File
+
+Copy `.state.md` template from `templates/.state.md.example` to the repository root. Set all fields to their default idle values. This enables `/next` auto-advance from the first workflow.
+
+## Step 9: Commit
 
 Commit all generated files:
 
 ```bash
-git add docs/wiki/ azure-pipelines.yml CLAUDE.md
-git commit -m "chore: bootstrap project with init-project (wiki, pipeline, CLAUDE.md)"
+git add docs/wiki/ azure-pipelines.yml CLAUDE.md .state.md
+git commit -m "chore: bootstrap project with init-project (wiki, pipeline, state, CLAUDE.md)"
 ```
 ```
 
@@ -301,7 +571,7 @@ git commit -m "feat(commands): add /init-project bootstrap command"
 
 ---
 
-## Task 4: Create `/validate-env` Command
+## Task 7: Create `/validate-env` Command
 
 **Files:**
 - Create: `commands/validate-env.md`
@@ -499,7 +769,7 @@ git commit -m "feat(commands): add /validate-env health check command"
 
 ---
 
-## Task 5: Create `.env.claude` for MDT Dynamics
+## Task 8: Create `.env.claude` for MDT Dynamics
 
 **Working Directory:** `C:\Users\andri\Dev\MDT dynamics`
 
@@ -558,7 +828,7 @@ git commit -m "chore: add .env.claude config for portable command suite"
 
 ---
 
-## Task 6: Backport Portability to MDT Dynamics Commands
+## Task 9: Backport Portability to MDT Dynamics Commands
 
 **Working Directory:** `C:\Users\andri\Dev\MDT dynamics`
 
@@ -615,7 +885,7 @@ git commit -m "refactor(commands): make 5 commands portable via .env.claude"
 
 ---
 
-## Task 7: Verify Backported Commands Work
+## Task 10: Verify Backported Commands Work
 
 **Working Directory:** `C:\Users\andri\Dev\MDT dynamics`
 
@@ -638,7 +908,7 @@ Confirm that `$AZURE_DEVOPS_PROJECT` expands correctly to `MDT dynamics` in the 
 
 ---
 
-## Task 8: Push Claude Skills Repo Updates
+## Task 11: Push Claude Skills Repo Updates
 
 **Working Directory:** `C:\Users\andri\Dev\Claude Skills`
 
@@ -664,17 +934,20 @@ Confirm the push succeeded and all files are visible in the Azure DevOps repo.
 
 ## Summary
 
-After Phase 1 completion (8 tasks):
+After Phase 1 completion (11 tasks):
 
 | Task | Deliverable | Repo |
 |------|-------------|------|
 | 1 | Shared config loader (`commands/_shared/load-config.md`) | Claude Skills |
-| 2 | CLAUDE.md wiki block template (`templates/claude-md-wiki-block.md`) | Claude Skills |
-| 3 | `/init-project` command (`commands/init-project.md`) | Claude Skills |
-| 4 | `/validate-env` command (`commands/validate-env.md`) | Claude Skills |
-| 5 | `.env.claude` for MDT Dynamics + `.gitignore` update | MDT Dynamics |
-| 6 | 5 commands backported to portable config (board, overview, ticket, update-ticket, create-backlog) | MDT Dynamics |
-| 7 | End-to-end verification of portable config pattern | MDT Dynamics |
-| 8 | Push all Claude Skills changes to Azure DevOps | Claude Skills |
+| 2 | State machine pattern + template (`commands/_shared/state-management.md`, `templates/.state.md.example`) | Claude Skills |
+| 3 | `/next` auto-advance command (`commands/next.md`) | Claude Skills |
+| 4 | `allowed-tools` frontmatter on all commands | Claude Skills |
+| 5 | CLAUDE.md wiki block template (`templates/claude-md-wiki-block.md`) | Claude Skills |
+| 6 | `/init-project` command (`commands/init-project.md`) | Claude Skills |
+| 7 | `/validate-env` command (`commands/validate-env.md`) | Claude Skills |
+| 8 | `.env.claude` for MDT Dynamics + `.gitignore` update | MDT Dynamics |
+| 9 | 5 commands backported to portable config (board, overview, ticket, update-ticket, create-backlog) | MDT Dynamics |
+| 10 | End-to-end verification of portable config pattern | MDT Dynamics |
+| 11 | Push all Claude Skills changes to Azure DevOps | Claude Skills |
 
 **Next:** Phase 2 — Lifecycle commands (`/staging`, `/release`, `/quick-fix`, `/hotfix`)

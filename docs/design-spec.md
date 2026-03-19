@@ -346,6 +346,32 @@ Every command orchestrates existing skills. No command reimplements functionalit
 
 5. **Gitflow branching.** `develop` (integration) → `staging` (QA) → `master` (production). Feature branches from develop. Hotfix branches from master.
 
+6. **Centralized state machine.** `.state.md` at the project root tracks the current track, step, branch, ticket ID, blockers, and next command. Every lifecycle command reads it first and writes it last. Inspired by GSD's `.planning/STATE.md` pattern. Enables session continuity, crash recovery, and auto-advance via `/next`.
+
+7. **Tool restrictions via frontmatter.** Each command declares `allowed-tools` in YAML frontmatter, preventing commands from acting outside their scope (e.g., `/validate-env` is read-only, `/staging` can't write code).
+
+8. **Context rot prevention.** Long-running workflows (like `/develop`) use fresh sub-agents per task via `superpowers:dispatching-parallel-agents`, keeping the main context window lean. Each sub-agent gets a clean 200K-token context.
+
+## State Machine: `.state.md`
+
+Every lifecycle command reads `.state.md` at the project root before acting and writes it after completing. This is the single "where am I?" file for the entire workflow.
+
+### Fields
+
+| Field | Purpose |
+|-------|---------|
+| `track` | Current pipeline: `feature`, `quick-fix`, `hotfix`, or `idle` |
+| `step` | Last completed step in the track |
+| `branch` | Active working branch name |
+| `ticket_id` | Azure DevOps work item ID |
+| `status` | `idle`, `in-progress`, `blocked`, `awaiting-review`, `ready-to-promote` |
+| `blockers` | What's blocking progress, or `none` |
+| `next_command` | The command that should run next |
+
+### Auto-Advance: `/next`
+
+The `/next` command reads `.state.md` and automatically invokes the next command in the current track. This enables zero-touch workflow progression.
+
 ## Tracking & Measurement
 
 Use the skill-creator eval system to track effectiveness:
@@ -363,6 +389,7 @@ Use the skill-creator eval system to track effectiveness:
 |---------|--------|-------|-------------|----------------|
 | `/init-project` | NEW | Bootstrap | Platform Engineer | — |
 | `/validate-env` | NEW | Bootstrap | DevOps Auditor | — |
+| `/next` | NEW | All Tracks | Workflow Orchestrator | reads .state.md, invokes next command |
 | `/feature` | ENHANCED | Full | Business Analyst + Architect | brainstorming, writing-plans |
 | `/develop` | EXISTS | Full, Quick | Senior Developer | TDD, code-review, verification |
 | `/quick-fix` | NEW | Quick | Pragmatic Developer | TDD, verification, code-review |
