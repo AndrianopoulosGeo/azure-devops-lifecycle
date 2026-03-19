@@ -1,0 +1,27 @@
+# Project State
+
+> Auto-managed by lifecycle commands. Do not edit manually unless recovering from a failure.
+
+## Current Work
+
+| Field | Value |
+|-------|-------|
+| track | — |
+| step | — |
+| branch | — |
+| ticket_id | — |
+| started_at | — |
+| last_command | — |
+| last_updated | — |
+
+## Status
+
+| Field | Value |
+|-------|-------|
+| status | idle |
+| blockers | none |
+| next_command | — |
+
+## History
+
+<!-- Appended by each command -->
