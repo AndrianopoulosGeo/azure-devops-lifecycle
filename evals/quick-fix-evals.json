@@ -1,0 +1,31 @@
+{
+  "skill_name": "quick-fix",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run /quick-fix fix the typo in the homepage hero section title",
+      "expected_output": "Creates Azure DevOps ticket, branches from develop, fixes the typo with tests, merges back to develop, updates .state.md",
+      "expectations": [
+        "Creates an Azure DevOps work item (Task or Bug) for the fix",
+        "Creates a branch from develop with naming pattern fix/<ticket-id>-<description>",
+        "Reads .env.claude for Azure DevOps configuration, not .env",
+        "Implements the fix with at least one test",
+        "Runs the test suite before merging",
+        "Merges the fix branch back to develop",
+        "Updates .state.md with track=quick-fix and next_command=/staging",
+        "Commit message follows Conventional Commits format",
+        "Commit message does NOT include Co-Authored-By or AI attribution"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run /quick-fix without any description",
+      "expected_output": "Asks the user what needs to be fixed before proceeding",
+      "expectations": [
+        "Does not create a ticket without a description",
+        "Asks the user to describe the issue",
+        "Does not branch or start implementing without user input"
+      ]
+    }
+  ]
+}

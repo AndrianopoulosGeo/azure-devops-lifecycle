@@ -1,0 +1,34 @@
+{
+  "skill_name": "hotfix",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run /hotfix the login endpoint is returning 500 errors in production, users can't sign in",
+      "expected_output": "Creates critical bug ticket, branches from master, diagnoses root cause, implements minimal fix with tests, merges to both master AND develop, creates hotfix tag",
+      "expectations": [
+        "Creates an Azure DevOps Bug with Priority 1 and Severity Critical",
+        "Branches from master (not develop)",
+        "Uses systematic debugging to find root cause before fixing",
+        "Implements a minimal fix (smallest change possible)",
+        "Writes at least one test for the fix",
+        "Merges hotfix branch to master",
+        "Merges hotfix branch to develop (prevents regression)",
+        "Creates a git tag with hotfix version",
+        "Pushes master with tags",
+        "Restores previous .state.md workflow if one was in progress",
+        "Commit message does NOT include Co-Authored-By or AI attribution"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run /hotfix while a feature workflow is in progress on branch feature/add-dashboard",
+      "expected_output": "Warns about existing workflow but proceeds (hotfix takes priority), then restores previous state after completion",
+      "expectations": [
+        "Reads .state.md and notices an existing workflow",
+        "Warns the user about the in-progress work",
+        "Proceeds with the hotfix despite existing workflow (hotfix takes priority)",
+        "After hotfix is complete, restores the previous workflow state"
+      ]
+    }
+  ]
+}

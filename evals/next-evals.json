@@ -1,0 +1,39 @@
+{
+  "skill_name": "next",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run /next when .state.md shows track=feature, step=develop, status=ready-to-promote, next_command=/staging",
+      "expected_output": "Auto-advance report showing it will invoke /staging, with track/step/branch context",
+      "expectations": [
+        "Output reads .state.md before taking action",
+        "Output displays the current track as 'feature'",
+        "Output identifies next_command as '/staging'",
+        "Output invokes or recommends invoking the /staging command",
+        "Output does NOT attempt to implement anything itself"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run /next when .state.md shows status=idle",
+      "expected_output": "Report that no active workflow exists, suggest starting with /feature, /quick-fix, or /hotfix",
+      "expectations": [
+        "Output reads .state.md",
+        "Output recognizes idle status",
+        "Output suggests starting a new workflow with /feature, /quick-fix, or /hotfix",
+        "Output does NOT invoke any other command"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run /next when .state.md shows status=blocked with blocker 'merge conflicts in src/app/page.tsx'",
+      "expected_output": "Report that workflow is blocked, show the blocker, suggest resolution",
+      "expectations": [
+        "Output reads .state.md",
+        "Output recognizes blocked status",
+        "Output displays the specific blocker description",
+        "Output does NOT attempt to auto-advance past the block"
+      ]
+    }
+  ]
+}

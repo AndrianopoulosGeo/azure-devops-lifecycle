@@ -1,0 +1,46 @@
+{
+  "skill_name": "staging-and-release",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run /staging to promote develop to the staging environment",
+      "expected_output": "Pre-flight checks, merge develop into staging, push, verify deployment, update state",
+      "expectations": [
+        "Checks if develop has commits ahead of staging before merging",
+        "Runs tests on develop before promoting",
+        "Merges develop into staging with --no-ff flag",
+        "Pushes staging branch to origin",
+        "Updates .state.md with status=ready-to-promote and next_command=/release",
+        "Returns to develop branch after completion",
+        "Prints a summary report with DONE/SKIP indicators",
+        "Reads STAGING_URL from .env.claude for deployment verification"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run /staging when develop and staging are already in sync",
+      "expected_output": "Reports nothing to promote and stops",
+      "expectations": [
+        "Checks git log staging..develop for differences",
+        "Reports 'Nothing to promote' or similar message",
+        "Does NOT perform a merge",
+        "Does NOT update .state.md"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run /release to deploy to production",
+      "expected_output": "Asks for confirmation, merges staging to master, creates tag, pushes, verifies production",
+      "expectations": [
+        "Asks for explicit user confirmation before proceeding (production deployment)",
+        "Checks existing git tags to determine next version number",
+        "Merges staging into master with --no-ff flag",
+        "Creates a git tag with version number",
+        "Pushes master and tags to origin",
+        "Updates .state.md to idle status (workflow complete)",
+        "Reads PRODUCTION_URL from .env.claude for verification",
+        "Prints a summary with the version tag and deployment status"
+      ]
+    }
+  ]
+}

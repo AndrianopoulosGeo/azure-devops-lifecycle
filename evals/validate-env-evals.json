@@ -1,0 +1,31 @@
+{
+  "skill_name": "validate-env",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run /validate-env to check if this project is set up correctly",
+      "expected_output": "A formatted health check report with PASS/FAIL/WARN for each category: Configuration, Azure DevOps, Git Branches, Wiki, Pipeline, CLAUDE.md, Security",
+      "expectations": [
+        "Output includes a section header for 'Configuration' checks",
+        "Output includes a section header for 'Azure DevOps' connection check",
+        "Output includes a section header for 'Git Branches' checks",
+        "Output includes a section header for 'Wiki' checks",
+        "Output checks whether .env.claude exists",
+        "Output reports PASS, FAIL, or WARN for each check",
+        "Output includes a final summary with total PASS/FAIL/WARN counts",
+        "Output provides actionable remediation for any FAIL or WARN items",
+        "The command reads from .env.claude, not .env"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run /validate-env on a project that has no .env.claude file",
+      "expected_output": "Immediate FAIL with clear instructions to create .env.claude from template",
+      "expectations": [
+        "Output reports FAIL for missing .env.claude",
+        "Output suggests creating from template: cp templates/.env.claude.example .env.claude",
+        "The command does not crash or produce an unformatted error"
+      ]
+    }
+  ]
+}

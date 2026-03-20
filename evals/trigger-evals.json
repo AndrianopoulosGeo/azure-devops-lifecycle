@@ -1,0 +1,102 @@
+[
+  {
+    "query": "I need to check if this project is set up correctly for the lifecycle commands",
+    "should_trigger": "validate-env",
+    "should_not_trigger": ["init-project", "develop"]
+  },
+  {
+    "query": "bootstrap this repo with wiki, pipelines, and everything we need",
+    "should_trigger": "init-project",
+    "should_not_trigger": ["validate-env", "wiki"]
+  },
+  {
+    "query": "set up this new project for the development lifecycle",
+    "should_trigger": "init-project",
+    "should_not_trigger": ["feature", "develop"]
+  },
+  {
+    "query": "the button color on the homepage is wrong, can you fix it real quick?",
+    "should_trigger": "quick-fix",
+    "should_not_trigger": ["hotfix", "feature", "bug"]
+  },
+  {
+    "query": "there's a small typo in the footer text, just fix it",
+    "should_trigger": "quick-fix",
+    "should_not_trigger": ["hotfix", "feature"]
+  },
+  {
+    "query": "production is down! the login page is returning 500 errors, we need to fix this NOW",
+    "should_trigger": "hotfix",
+    "should_not_trigger": ["quick-fix", "bug", "feature"]
+  },
+  {
+    "query": "critical: customers can't checkout, the payment endpoint is broken in production",
+    "should_trigger": "hotfix",
+    "should_not_trigger": ["quick-fix", "staging", "release"]
+  },
+  {
+    "query": "we're ready to push the develop branch to staging for QA",
+    "should_trigger": "staging",
+    "should_not_trigger": ["release", "develop", "next"]
+  },
+  {
+    "query": "promote the current code to staging environment",
+    "should_trigger": "staging",
+    "should_not_trigger": ["release", "deploy"]
+  },
+  {
+    "query": "staging looks good, let's release to production",
+    "should_trigger": "release",
+    "should_not_trigger": ["staging", "hotfix"]
+  },
+  {
+    "query": "we need to deploy version 2.1.0 to production now",
+    "should_trigger": "release",
+    "should_not_trigger": ["staging", "hotfix", "develop"]
+  },
+  {
+    "query": "what should I do next in this workflow?",
+    "should_trigger": "next",
+    "should_not_trigger": ["develop", "staging", "release"]
+  },
+  {
+    "query": "continue the pipeline, advance to the next step",
+    "should_trigger": "next",
+    "should_not_trigger": ["develop", "staging"]
+  },
+  {
+    "query": "I want to plan and design a new user dashboard feature",
+    "should_trigger": "feature",
+    "should_not_trigger": ["quick-fix", "develop", "hotfix"]
+  },
+  {
+    "query": "update the wiki with current architecture information",
+    "should_trigger": "wiki",
+    "should_not_trigger": ["init-project", "feature"]
+  },
+  {
+    "query": "check the status of our project documentation",
+    "should_trigger": "wiki",
+    "should_not_trigger": ["validate-env", "overview"]
+  },
+  {
+    "query": "I need to add internationalization support for German language, this is a big feature",
+    "should_trigger": "feature",
+    "should_not_trigger": ["quick-fix", "hotfix"]
+  },
+  {
+    "query": "the spacing between cards in the grid is 2px too wide",
+    "should_trigger": "quick-fix",
+    "should_not_trigger": ["feature", "hotfix"]
+  },
+  {
+    "query": "our SSL certificate expired and the site is showing security warnings to all users",
+    "should_trigger": "hotfix",
+    "should_not_trigger": ["quick-fix", "bug"]
+  },
+  {
+    "query": "run the health check on the environment",
+    "should_trigger": "validate-env",
+    "should_not_trigger": ["init-project", "staging"]
+  }
+]
