@@ -336,7 +336,8 @@ git check-ignore -q .worktrees 2>/dev/null || echo ".worktrees/" >> .gitignore &
 ```bash
 git pull origin develop
 BRANCH_NAME="feature/[short-feature-name]"
-WORKTREE_PATH=".worktrees/$BRANCH_NAME"
+FLAT_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '--')
+WORKTREE_PATH=".worktrees/$FLAT_BRANCH"
 git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME"
 ```
 
@@ -350,15 +351,19 @@ cd "$WORKTREE_PATH"
 
 ### 3.3 Install dependencies in worktree
 
-```bash
-npm install
-```
+Run the appropriate install command for the project's `TECH_STACK`:
+- `nextjs`: `npm install`
+- `dotnet`: `dotnet restore`
+- `python`: `pip install -r requirements.txt` (or equivalent)
 
 ### 3.4 Verify clean baseline
 
-```bash
-npm run build && npm test
-```
+Run the appropriate build/test commands for the project's `TECH_STACK`:
+- `nextjs`: `npm run build && npm run lint && npx tsc --noEmit`, then `npm test && npm run test:e2e`
+- `dotnet`: `dotnet build`, then `dotnet test`
+- `python`: `python -m pytest`
+
+Or read the exact commands from the project's `CLAUDE.md`.
 
 **If tests fail:** Report failures and ask the user whether to proceed or investigate. Do NOT continue with a broken baseline.
 
@@ -440,33 +445,23 @@ az boards work-item update --id [STORY_ID] --description "<existing description>
 
 ### 5.1 Build, typecheck, and lint
 
-Run these as separate Bash calls to isolate failures:
+Run the appropriate build/test commands for the project's `TECH_STACK` as separate calls to isolate failures:
+- `nextjs`: `npm run build && npm run lint && npx tsc --noEmit`, then `npm test && npm run test:e2e`
+- `dotnet`: `dotnet build`, then `dotnet test`
+- `python`: `python -m pytest`
 
-```bash
-npm run build
-```
-
-```bash
-npm run lint
-```
-
-```bash
-npx tsc --noEmit
-```
+Or read the exact commands from the project's `CLAUDE.md`.
 
 Fix any compilation errors, type errors, or lint violations before proceeding to tests.
 
 ### 5.2 Run All Tests
 
-Run each test suite as a separate Bash call for failure isolation:
+Run the appropriate build/test commands for the project's `TECH_STACK`:
+- `nextjs`: `npm run build && npm run lint && npx tsc --noEmit`, then `npm test && npm run test:e2e`
+- `dotnet`: `dotnet build`, then `dotnet test`
+- `python`: `python -m pytest`
 
-```bash
-npm test
-```
-
-```bash
-npm run test:e2e
-```
+Or read the exact commands from the project's `CLAUDE.md`.
 
 ### 5.3 Fix Any Failures
 
@@ -507,17 +502,12 @@ Apply suggestions from the code-simplifier. Focus on: removing unnecessary compl
 
 ### 6.4 Re-run Build & Tests
 
-After simplification changes, verify nothing broke:
+After simplification changes, verify nothing broke. Run the appropriate build/test commands for the project's `TECH_STACK`:
+- `nextjs`: `npm run build && npm run lint && npx tsc --noEmit`, then `npm test && npm run test:e2e`
+- `dotnet`: `dotnet build`, then `dotnet test`
+- `python`: `python -m pytest`
 
-```bash
-npm run build && npm run lint && npx tsc --noEmit
-```
-
-Then run the full test suite:
-
-```bash
-npm test && npm run test:e2e
-```
+Or read the exact commands from the project's `CLAUDE.md`.
 
 Fix any regressions.
 
@@ -551,17 +541,12 @@ After fixing PR review issues, invoke **`Agent` tool with `subagent_type: "pr-re
 
 ### 7.4 Final Build & Test Run
 
-Run the complete build + test suite one last time:
+Run the complete build + test suite one last time. Run the appropriate build/test commands for the project's `TECH_STACK`:
+- `nextjs`: `npm run build && npm run lint && npx tsc --noEmit`, then `npm test && npm run test:e2e`
+- `dotnet`: `dotnet build`, then `dotnet test`
+- `python`: `python -m pytest`
 
-```bash
-npm run build && npm run lint && npx tsc --noEmit
-```
-
-Then run all tests:
-
-```bash
-npm test && npm run test:e2e
-```
+Or read the exact commands from the project's `CLAUDE.md`.
 
 **All tests MUST pass before proceeding. Do not continue if any test fails.**
 
@@ -682,15 +667,12 @@ If there are merge conflicts: analyze, resolve, re-run build + tests. If conflic
 
 ### 10.3 Verify the merge
 
-```bash
-npm run build && npm run lint && npx tsc --noEmit
-```
+Run the appropriate build/test commands for the project's `TECH_STACK`:
+- `nextjs`: `npm run build && npm run lint && npx tsc --noEmit`, then `npm test && npm run test:e2e`
+- `dotnet`: `dotnet build`, then `dotnet test`
+- `python`: `python -m pytest`
 
-Run a quick test pass:
-
-```bash
-npm test
-```
+Or read the exact commands from the project's `CLAUDE.md`.
 
 **All tests MUST pass. If any test fails, fix before proceeding.**
 
@@ -706,7 +688,8 @@ git add docs/plans/ && git commit -m "chore: remove temporary plan files for <fe
 ### 10.5 Remove worktree and delete the feature branch
 
 ```bash
-git worktree remove .worktrees/feature/[short-feature-name] --force
+FLAT_BRANCH=$(echo "feature/[short-feature-name]" | tr '/' '--')
+git worktree remove ".worktrees/$FLAT_BRANCH" --force
 git branch -d feature/[short-feature-name]
 ```
 
