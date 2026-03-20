@@ -1,3 +1,7 @@
+---
+allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, Agent, Skill]
+---
+
 Create a fully planned feature: brainstorm the design, write implementation plans, then create Azure DevOps work items. Produces 2 plan files that `/develop` consumes.
 
 **Design mode**: When the feature involves UI/frontend work, pass `--design` or include "design" / "UI" / "frontend" / "page" / "component" in your description to activate the **Design Toolchain** — this triggers frontend-design, ui-ux-pro-max, and 21st magic MCP tools during brainstorming and planning.
@@ -55,15 +59,16 @@ Read the project's **architectural and convention reference docs**. These define
 | `docs/decisions/` | Architecture Decision Records (ADRs) — past decisions and their rationale (e.g., Next.js App Router, Tailwind v4, Framer Motion) |
 | `docs/TESTING.md` | **Testing reference** — test runners, commands, file structure, mocking patterns, E2E conventions, CI pipeline |
 
-### 3.2 Project Configuration (read for context)
+> **Portability note:** These paths refer to the **target project**, not the plugin. Read whatever exists — not all projects have all files. Let `TECH_STACK` from `.env.claude` guide which config files to look for (e.g., `package.json` for nextjs, `.csproj` for dotnet, `pyproject.toml` for python).
+
+### 3.2 Project Configuration (read for context — read whatever exists)
 
 | File | What it provides |
 |------|-----------------|
-| `package.json` | Dependencies, scripts, tech stack |
-| `next.config.ts` or `next.config.js` | Next.js configuration |
-| `tsconfig.json` | TypeScript configuration |
-| `vitest.config.ts` | Vitest test runner configuration |
-| `playwright.config.ts` | Playwright E2E test configuration |
+| `package.json` or `*.csproj` or `pyproject.toml` | Dependencies, scripts, tech stack |
+| Framework config (`next.config.ts`, `appsettings.json`, etc.) | Framework-specific configuration |
+| `tsconfig.json` | TypeScript configuration (if applicable) |
+| Test config (`vitest.config.ts`, `playwright.config.ts`, etc.) | Test runner configuration (if applicable) |
 
 ### 3.3 What to extract for brainstorming
 
@@ -185,16 +190,12 @@ Include:
 
 ## STEP 6: RESEARCH & CREATE IMPLEMENTATION PLAN (superpowers:writing-plans pattern)
 
-### 6.0 Fetch Up-to-Date Documentation
+### 6.0 Fetch Up-to-Date Documentation (MANDATORY)
 
 Before writing the plan, gather current documentation for all technologies involved:
 
 **Context7 (mandatory):**
-Use `resolve-library-id` + `query-docs` to fetch docs for every library the feature touches. At minimum:
-- Next.js, React, Framer Motion
-- Tailwind CSS
-- Vitest, Testing Library, Playwright (for test code)
-- Any NEW libraries the feature introduces
+Use `resolve-library-id` + `query-docs` to fetch docs for every library the feature touches. This is NOT optional — plans written without verified library docs risk using deprecated or non-existent APIs.
 
 **WebSearch (targeted):**
 Search for current best practices on specific patterns the feature requires:
@@ -266,6 +267,13 @@ Expected: PASS
 **Step 5: Commit**
 [exact git commands]
 ```
+
+**Build/test commands vary by TECH_STACK:**
+- `nextjs`: `npm run build`, `npm test`, `npm run test:e2e`
+- `dotnet`: `dotnet build`, `dotnet test`
+- `python`: `python -m pytest`, `python -m pytest e2e/`
+
+Alternatively, read the exact build/test commands from the project's `CLAUDE.md` if they are documented there.
 
 ### Plan Requirements
 
@@ -418,7 +426,7 @@ Display:
 
 1. **Full tree view** with all created work item IDs
 2. **Stats**: Total items created per type
-3. **Board link**: `https://dev.azure.com/pgSquare/MDT%20dynamics/_boards/board`
+3. **Board link**: `https://dev.azure.com/$AZURE_DEVOPS_ORG/$AZURE_DEVOPS_PROJECT/_boards/board`
 4. **Working plan files** (temporary — will be cleaned up after `/develop` completes):
    ```
    Design:         docs/plans/<feature-name>-design.md
