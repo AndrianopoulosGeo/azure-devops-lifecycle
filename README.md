@@ -1,51 +1,89 @@
-# Claude Skills — Portable Development Lifecycle Automation
+# Azure DevOps Lifecycle
 
-A portable package of Claude Code commands that can be dropped into any project and self-configure from a single `.env.claude` file.
+Full development lifecycle automation with Azure DevOps — feature planning, TDD implementation, staging, release, hotfix, and wiki management with Gitflow branching.
+
+## Installation
+
+```bash
+# Add the marketplace
+/plugin marketplace add AndrianopoulosGeo/claude-marketplace
+
+# Install the plugin
+/plugin install azure-devops-lifecycle@andrianopoulos-marketplace
+```
+
+## Prerequisites
+
+- **Azure CLI** with DevOps extension (`az extension add --name azure-devops`)
+- **superpowers** plugin (`/plugin install superpowers@claude-plugins-official`)
+- **pr-review-toolkit** plugin (`/plugin install pr-review-toolkit@claude-plugins-official`)
+- Git with Gitflow branching (develop, staging, master)
+
+### Optional (for UI/design features)
+- `frontend-design` plugin
+- `context7` MCP server (library documentation)
 
 ## Quick Start
 
-1. Copy the `commands/` folder into your project's `.claude/commands/`
-2. Create `.env.claude` at your repo root (see `templates/.env.claude.example`)
-3. Run `/init-project` to scaffold wiki, pipelines, and CLAUDE.md references
-4. Run `/validate-env` to verify everything is set up correctly
+1. Create `.env.claude` at your repo root (copy from the plugin's template)
+2. Fill in your Azure DevOps org, project, and PAT token
+3. Run `/azure-devops-lifecycle:init-project` to scaffold wiki, pipelines, and CLAUDE.md
+4. Run `/azure-devops-lifecycle:validate-env` to verify everything is set up
 
 ## Development Tracks
 
 | Track | Commands | When |
 |-------|----------|------|
-| **Full Feature** | `/feature` → `/develop` → `/staging` → `/release` | New features |
-| **Quick Fix** | `/quick-fix` → `/staging` → `/release` | Small bugs/improvements |
-| **Hotfix** | `/hotfix` | Production emergencies |
+| **Full Feature** | `feature` → `develop` → `staging` → `release` | New features |
+| **Quick Fix** | `quick-fix` → `staging` → `release` | Small bugs/improvements |
+| **Hotfix** | `hotfix` | Production emergencies |
 
 ## Commands
 
+All commands are prefixed with `azure-devops-lifecycle:` when installed as a plugin.
+
 ### Bootstrap
-- `/init-project` — Scaffold wiki, generate pipelines, configure CLAUDE.md
-- `/validate-env` — Health check for repo setup
+| Command | Description |
+|---------|-------------|
+| `/azure-devops-lifecycle:init-project` | Scaffold wiki, generate pipelines, configure CLAUDE.md |
+| `/azure-devops-lifecycle:validate-env` | Health check for repo setup and plugin dependencies |
 
 ### Lifecycle
-- `/feature` — Brainstorm, plan, create tickets (Business Analyst + Architect)
-- `/develop` — 10-phase TDD implementation (Senior Developer)
-- `/quick-fix` — Fast track: skip brainstorm, straight to code (Pragmatic Developer)
-- `/hotfix` — Branch from master, fix, deploy (On-call SRE)
-- `/staging` — Promote develop → staging, verify (QA Engineer)
-- `/release` — Promote staging → master, deploy (Release Manager)
+| Command | Description |
+|---------|-------------|
+| `/azure-devops-lifecycle:feature` | Brainstorm, plan, create tickets (Business Analyst + Architect) |
+| `/azure-devops-lifecycle:develop` | 10-phase TDD implementation with quality gates (Senior Developer) |
+| `/azure-devops-lifecycle:quick-fix` | Fast track: skip brainstorm, straight to code (Pragmatic Developer) |
+| `/azure-devops-lifecycle:hotfix` | Branch from master, fix, deploy (On-call SRE) |
+| `/azure-devops-lifecycle:staging` | Promote develop → staging, verify (QA Engineer) |
+| `/azure-devops-lifecycle:release` | Promote staging → master, deploy (Release Manager) |
 
 ### Knowledge
-- `/wiki` — Manage project documentation wiki
+| Command | Description |
+|---------|-------------|
+| `/azure-devops-lifecycle:wiki` | Manage project documentation wiki |
 
-### Info (Azure DevOps)
-- `/board` — View board state
-- `/overview` — Standup report
-- `/ticket` — Create work item
-- `/update-ticket` — Update work item
+### Orchestration
+| Command | Description |
+|---------|-------------|
+| `/azure-devops-lifecycle:next` | Auto-advance to next step in current workflow |
 
 ## Configuration
 
-All commands read from `.env.claude` at the repo root. See `templates/.env.claude.example` for the full schema.
+All commands read from `.env.claude` at your project root.
 
-## Requirements
+### Required Fields
+- `AZURE_DEVOPS_ORG` — Your Azure DevOps organization
+- `AZURE_DEVOPS_PROJECT` — Project name
+- `AZURE_DEVOPS_PAT` — Personal Access Token
+- `DEPLOY_TARGET` — `hetzner` | `azure` | `vercel`
+- `TECH_STACK` — `nextjs` | `dotnet` | `python`
 
-- Claude Code with superpowers plugin enabled
-- Azure DevOps project with PAT token
-- Git with Gitflow branching (develop, staging, master)
+### Optional Fields
+- `STAGING_URL`, `PRODUCTION_URL` — Environment URLs
+- `BRANCH_STRATEGY` — Defaults to `gitflow`
+- `STAGING_PIPELINE_ID`, `PRODUCTION_PIPELINE_ID` — Auto-populated by init-project
+
+## License
+
+MIT
