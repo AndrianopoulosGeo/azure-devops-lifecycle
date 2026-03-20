@@ -40,6 +40,8 @@ Parse `$ARGUMENTS` to determine the action:
 | `update configuration` | Update `docs/wiki/configuration.md` |
 | `update conventions` | Update `docs/wiki/conventions.md` |
 | `auto` | Update ALL sections that have status `template` |
+| `reset` | Reset ALL sections back to `template` status (re-copies from plugin templates) |
+| `reset <section>` | Reset a specific section back to `template` |
 | `review` | Check all sections for accuracy |
 
 ## Subcommand: `status`
@@ -209,6 +211,40 @@ Run `update` for every section that has `status: template`. Skip sections that a
 Use the Agent tool with `superpowers:dispatching-parallel-agents` to parallelize independent section updates when 3+ sections need updating.
 
 After all updates, print the status report.
+
+## Subcommand: `reset`
+
+Reset wiki sections back to their template state by re-copying from the plugin templates. This allows `/wiki auto` to regenerate them with the latest analysis depth.
+
+**`/wiki reset`** — Reset ALL sections:
+
+```bash
+# Copy all templates back, replacing existing content
+for file in ${CLAUDE_PLUGIN_ROOT:-.}/templates/wiki/*.md; do
+  cp "$file" "docs/wiki/$(basename $file)"
+done
+```
+
+Replace `{{DATE}}` with today's date and apply the same placeholder substitutions as `/init-project` Step 4 (project name, tech stack, URLs, etc.).
+
+After reset, print:
+```
+Reset 8 wiki sections to template status.
+Run /wiki auto to regenerate with deep analysis.
+```
+
+**`/wiki reset <section>`** — Reset a specific section:
+
+Copy only the matching template file:
+```bash
+cp "${CLAUDE_PLUGIN_ROOT:-.}/templates/wiki/<section>.md" "docs/wiki/<section>.md"
+```
+
+Apply placeholder substitutions, then print:
+```
+Reset <section>.md to template status.
+Run /wiki update <section> to regenerate.
+```
 
 ## Subcommand: `review`
 
