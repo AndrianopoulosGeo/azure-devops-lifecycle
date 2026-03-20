@@ -10,6 +10,8 @@
 
 **Design Doc:** `docs/superpowers/specs/2026-03-20-marketplace-plugin-conversion-design.md`
 
+**Note:** The local directory is `C:\Users\andri\Dev\Claude Skills` but the GitHub repo will be named `azure-devops-lifecycle`. The local directory name does not matter for plugin distribution — the marketplace manifest references the GitHub repo name. Do not rename the local directory.
+
 ---
 
 ### Task 1: Create Plugin Manifest
@@ -107,6 +109,8 @@ Replace with:
 
 - [ ] **Step 3: Make Step 3 architectural references tech-stack-agnostic**
 
+Find the heading `### 3.2 Project Configuration (read for context)` and the table below it. Replace the entire table with the updated version below. Then add the portability note after the `### 3.1 Architecture & Conventions (REQUIRED — read all)` table.
+
 In STEP 3, after the table of architectural reference files, add this note:
 
 ```markdown
@@ -128,7 +132,7 @@ In section 3.2, replace the hardcoded Next.js config file list:
 
 - [ ] **Step 4: Make Context7 mandatory in Step 6.0**
 
-In STEP 6 (Research & Create Implementation Plan), find the section about fetching documentation. Ensure it says:
+Find the heading `### 6.0 Fetch Up-to-Date Documentation` (under `## STEP 6: RESEARCH & CREATE IMPLEMENTATION PLAN`). Replace the subsection heading and the paragraph below it with:
 
 ```markdown
 ### 6.0 Fetch Up-to-Date Documentation (MANDATORY)
@@ -139,7 +143,7 @@ Use `resolve-library-id` + `query-docs` to fetch docs for every library the feat
 
 - [ ] **Step 5: Make build/test commands tech-stack-aware in Step 6**
 
-In the Task Structure section of Step 6.1, replace hardcoded `npm` references. Change the example:
+Find the `### Task Structure` section under Step 6.1. Locate any hardcoded `npm test`, `npm run build`, or `npm run test:e2e` references. Replace with the tech-stack-aware block:
 
 ```markdown
 **Build/test commands vary by TECH_STACK:**
@@ -214,9 +218,9 @@ Every phase ends with the same checkpoint pattern. When you see **"CHECKPOINT N"
 **Never stop between phases.** If the task list shows pending phases, you are not done.
 ```
 
-- [ ] **Step 3: Add CHECKPOINT markers to all existing phases**
+- [ ] **Step 3: Add CHECKPOINT markers to phases that won't be rewritten**
 
-At the end of each existing phase section (Phase 1, 2, 3, 4, 5, 8, 9, 10), add:
+At the end of each of these phase sections (Phase 1, 4, 5, 8, 9, 10), add a checkpoint marker. Skip Phases 2 and 3 — those will get checkpoints when Tasks 5 and 6 rewrite them:
 
 ```markdown
 ### CHECKPOINT N
@@ -240,7 +244,7 @@ git commit -m "feat(develop): add task orchestration and checkpoint pattern (Pha
 
 - [ ] **Step 1: Rewrite Phase 3 for worktree isolation**
 
-Replace the existing Phase 3 content (which currently just creates a branch and installs deps) with:
+Replace everything from `## PHASE 3:` up to (but not including) `## PHASE 4:` with the following:
 
 ```markdown
 ## PHASE 3: ENVIRONMENT PREPARATION (WORKTREE-BASED)
@@ -598,7 +602,15 @@ If a phase fails critically:
 
 - [ ] **Step 3: Make all build/test references tech-stack-aware**
 
-Search the entire file for hardcoded `npm run build`, `npm test`, `npm run test:e2e`, `npm install`, `npx tsc --noEmit`, and `npm run lint`. Replace each with a tech-stack-aware note:
+Use `grep -n "npm\|npx\|dotnet" commands/develop.md` to find all hardcoded build/test commands. Known locations to check:
+- Phase 5 (Build & Test): `npm run build`, `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run test:e2e`
+- Phase 6.4 (Re-run): any `npm run build && npm run lint`
+- Phase 7.4 (Final run): same
+- Phase 10.3 (Verify merge): `npm run build`, `npm test`
+- Phase 3.3 (Install): `npm install`
+- Phase 3.4 (Baseline): `npm run build && npm test`
+
+Replace each occurrence with:
 
 ```markdown
 Run the appropriate build/test commands for the project's `TECH_STACK`:
@@ -691,7 +703,17 @@ After the existing Check 8 (State File Check), add a new section:
 | `pr-review-toolkit` plugin | Check if pr-review-toolkit skills are loadable | [PASS] | [WARN] → Install: `/plugin install pr-review-toolkit@claude-plugins-official` |
 ```
 
-Update the output format to include the new section.
+Add this section to the Output Format block in validate-env.md, after the "State" section and before the `==================` footer:
+
+```
+Plugin Dependencies
+  [PASS] Azure CLI installed (v2.x.x)
+  [PASS] DevOps extension installed
+  [WARN] superpowers plugin not detected → /plugin install superpowers@claude-plugins-official
+  [WARN] pr-review-toolkit plugin not detected → /plugin install pr-review-toolkit@claude-plugins-official
+```
+
+Also update the result summary line to include these in the PASS/FAIL/WARN counts.
 
 - [ ] **Step 5: Commit**
 
@@ -861,11 +883,11 @@ git commit -m "docs: rewrite README for marketplace distribution"
 - Create (in separate repo): `claude-marketplace/.claude-plugin/marketplace.json`
 - Create (in separate repo): `claude-marketplace/README.md`
 
-- [ ] **Step 1: Clone the marketplace repo**
+- [ ] **Step 1: Clone the marketplace repo (or create if it doesn't exist)**
 
 ```bash
 cd /c/Users/andri/Dev
-git clone https://github.com/AndrianopoulosGeo/claude-marketplace.git
+git clone https://github.com/AndrianopoulosGeo/claude-marketplace.git 2>/dev/null || (gh repo create AndrianopoulosGeo/claude-marketplace --public && git clone https://github.com/AndrianopoulosGeo/claude-marketplace.git)
 cd claude-marketplace
 ```
 
@@ -965,7 +987,9 @@ git push github master
 
 ---
 
-### Task 14: Validate Installation
+### Task 14: Validate Installation (Manual — Interactive Claude Code Session)
+
+**Note:** These are Claude Code slash commands, not bash commands. Run them interactively in a Claude Code session.
 
 - [ ] **Step 1: Add the marketplace**
 
