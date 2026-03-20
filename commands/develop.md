@@ -1,3 +1,7 @@
+---
+allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, Agent, Skill, TaskCreate, TaskUpdate, TaskList]
+---
+
 # Automated Feature Development Workflow
 
 Execute the full development lifecycle for a feature. This command reads plan files (design doc + implementation plan) if they exist, or **generates them automatically** from the Azure DevOps feature description and ticket hierarchy.
