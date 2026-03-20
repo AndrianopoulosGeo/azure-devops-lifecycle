@@ -1,0 +1,12 @@
+{
+  "name": "azure-devops-lifecycle",
+  "description": "Full development lifecycle automation with Azure DevOps — feature planning, TDD implementation, staging, release, hotfix, and wiki management with Gitflow branching",
+  "version": "1.0.0",
+  "author": {
+    "name": "AndrianopoulosGeo",
+    "email": "andrianopoulos.ge@gmail.com"
+  },
+  "repository": "https://github.com/AndrianopoulosGeo/azure-devops-lifecycle",
+  "license": "MIT",
+  "keywords": ["azure-devops", "gitflow", "lifecycle", "ci-cd", "deployment", "tdd"]
+}
