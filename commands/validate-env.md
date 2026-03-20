@@ -15,7 +15,7 @@ First, attempt to load `.env.claude`:
 ```bash
 if [ ! -f .env.claude ]; then
   echo "[FAIL] .env.claude not found"
-  echo "  → Create from template: cp templates/.env.claude.example .env.claude"
+  echo "  → Create from template: cp ${CLAUDE_PLUGIN_ROOT:-.}/templates/.env.claude.example .env.claude"
   exit 1
 fi
 ```
@@ -120,6 +120,15 @@ Same for `PRODUCTION_PIPELINE_ID`. If the API call fails, report:
 |-------|------|------|
 | `.state.md` exists | [PASS] | [WARN] → Run /init-project to create state file |
 
+### 9. Plugin Dependency Checks
+
+| Check | Command | Pass | Fail |
+|-------|---------|------|------|
+| Azure CLI installed | `az --version 2>/dev/null` | [PASS] | [FAIL] → Install Azure CLI: https://aka.ms/installazurecli |
+| DevOps extension | `az extension show --name azure-devops 2>/dev/null` | [PASS] | [FAIL] → Run: `az extension add --name azure-devops` |
+| `superpowers` plugin | Check if superpowers skills are loadable | [PASS] | [WARN] → Install: `/plugin install superpowers@claude-plugins-official` |
+| `pr-review-toolkit` plugin | Check if pr-review-toolkit skills are loadable | [PASS] | [WARN] → Install: `/plugin install pr-review-toolkit@claude-plugins-official` |
+
 ## Output Format
 
 Present all results in a clean table:
@@ -166,11 +175,17 @@ CLAUDE.md
 State
   [PASS] .state.md exists
 
+Plugin Dependencies
+  [PASS] Azure CLI installed (v2.x.x)
+  [PASS] DevOps extension installed
+  [WARN] superpowers plugin not detected → /plugin install superpowers@claude-plugins-official
+  [WARN] pr-review-toolkit plugin not detected → /plugin install pr-review-toolkit@claude-plugins-official
+
 Security
   [PASS] .env.claude is gitignored
 
 ==========================================
-Result: 14 PASS | 1 FAIL | 4 WARN
+Result: 14 PASS | 1 FAIL | 6 WARN
 
 Action Required:
   1. [FAIL] Create staging branch: git branch staging

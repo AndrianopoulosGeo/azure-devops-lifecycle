@@ -46,6 +46,14 @@ az devops project show --project "$AZURE_DEVOPS_PROJECT" --output table
 
 If this fails, print the error and suggest checking the PAT token permissions (needs Work Items Read/Write, Code Read/Write, Build Read/Execute).
 
+## Step 2.5: Ensure .env.claude is Gitignored
+
+`.env.claude` contains secrets (PAT token). Ensure it's not committed:
+
+```bash
+git check-ignore -q .env.claude 2>/dev/null || echo ".env.claude" >> .gitignore
+```
+
 ## Step 3: Create Git Branches
 
 Check which branches exist and create any that are missing:
@@ -67,7 +75,7 @@ Report which branches already existed and which were created.
 
 Create `docs/wiki/` directory and copy template files. Replace template placeholders with values from `.env.claude`:
 
-For each wiki template file in `templates/wiki/`:
+For each wiki template file in `${CLAUDE_PLUGIN_ROOT:-.}/templates/wiki/`:
 1. Copy to `docs/wiki/`
 2. Replace `{{PROJECT_NAME}}` with `$AZURE_DEVOPS_PROJECT`
 3. Replace `{{TECH_STACK}}` with `$TECH_STACK`
@@ -88,9 +96,9 @@ Based on `DEPLOY_TARGET` and `TECH_STACK`, select the right pipeline template:
 
 | TECH_STACK | DEPLOY_TARGET | Template |
 |-----------|--------------|----------|
-| nextjs | hetzner | `templates/pipelines/azure-pipelines-nextjs-hetzner.yml` |
-| nextjs | vercel | `templates/pipelines/azure-pipelines-nextjs-vercel.yml` |
-| dotnet | azure | `templates/pipelines/azure-pipelines-dotnet-azure.yml` |
+| nextjs | hetzner | `${CLAUDE_PLUGIN_ROOT:-.}/templates/pipelines/azure-pipelines-nextjs-hetzner.yml` |
+| nextjs | vercel | `${CLAUDE_PLUGIN_ROOT:-.}/templates/pipelines/azure-pipelines-nextjs-vercel.yml` |
+| dotnet | azure | `${CLAUDE_PLUGIN_ROOT:-.}/templates/pipelines/azure-pipelines-dotnet-azure.yml` |
 
 1. Copy the matching template to `azure-pipelines.yml` at the repository root
 2. If no exact match exists, warn the user and skip pipeline generation:
@@ -99,7 +107,7 @@ Based on `DEPLOY_TARGET` and `TECH_STACK`, select the right pipeline template:
 
 ## Step 6: Update CLAUDE.md
 
-Read the `templates/claude-md-wiki-block.md` template and append it to the project's `CLAUDE.md`.
+Read the `${CLAUDE_PLUGIN_ROOT:-.}/templates/claude-md-wiki-block.md` template and append it to the project's `CLAUDE.md`.
 
 1. Check if `CLAUDE.md` exists — if not, create it with a basic header first
 2. Check if the wiki reference block already exists (search for "## Project Wiki Reference") — if so, skip
@@ -132,7 +140,7 @@ Next steps:
 
 ## Step 8: Initialize State File
 
-Copy `.state.md` template from `templates/.state.md.example` to the repository root. Set all fields to their default idle values. This enables `/next` auto-advance from the first workflow.
+Copy `.state.md` template from `${CLAUDE_PLUGIN_ROOT:-.}/templates/.state.md.example` to the repository root. Set all fields to their default idle values. This enables `/next` auto-advance from the first workflow.
 
 ## Step 9: Commit
 
