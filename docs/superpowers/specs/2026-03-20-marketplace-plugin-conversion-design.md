@@ -113,13 +113,32 @@ claude-marketplace/
 /azure-devops-lifecycle:validate-env
 ```
 
+## Migration Steps
+
+1. Copy `feature.md` and `develop.md` from `MDT dynamics/.claude/commands/` into the plugin repo's `commands/` directory
+2. Apply the changes listed below to bring them up to design spec parity
+3. Create `.claude-plugin/plugin.json` manifest
+4. Create the marketplace repo with `marketplace.json`
+5. Push both repos to GitHub
+
 ## Changes to Existing Commands
 
 ### All Commands: Template Path References
 
-Any reference to `templates/` must use `${CLAUDE_PLUGIN_ROOT}/templates/` since the plugin is cached at `~/.claude/plugins/cache/`. Affected commands:
-- `init-project.md` — copies templates for wiki, pipelines, .env.claude
-- `validate-env.md` — references template path in remediation message
+`${CLAUDE_PLUGIN_ROOT}` is an environment variable set automatically by Claude Code's plugin runtime. It resolves to the plugin's cached install location (e.g., `~/.claude/plugins/cache/andrianopoulos-marketplace/azure-devops-lifecycle/1.0.0/`). Commands that reference the plugin's own bundled files must use this variable.
+
+Commands that read `.env.claude` and `.state.md` from the **project root** are unaffected — those files live in the user's project, not the plugin.
+
+Affected commands (template path updates only):
+- `init-project.md` — copies templates for wiki, pipelines, .env.claude. Change `templates/` → `${CLAUDE_PLUGIN_ROOT}/templates/`. Add fallback for local dev: `${CLAUDE_PLUGIN_ROOT:-.}/templates/`
+- `validate-env.md` — references template path in remediation message. Same change.
+
+### init-project.md — Add .env.claude to .gitignore
+
+Add a step to ensure `.env.claude` is gitignored (it contains `AZURE_DEVOPS_PAT`):
+```bash
+git check-ignore -q .env.claude 2>/dev/null || echo ".env.claude" >> .gitignore
+```
 
 ### feature.md — Bring Up to Design Spec Parity
 
@@ -131,20 +150,30 @@ Source: MDT dynamics `feature.md` (443 lines). Changes needed:
    allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, Agent, Skill]
    ---
    ```
+   Note: MDT file currently has no frontmatter. Adding it shifts all line numbers — reference changes by step name, not line number.
 
-2. **Remove hardcoded board link** (line 421):
+2. **Remove hardcoded board link** (Step 11):
    - Before: `https://dev.azure.com/pgSquare/MDT%20dynamics/_boards/board`
    - After: `https://dev.azure.com/$AZURE_DEVOPS_ORG/$AZURE_DEVOPS_PROJECT/_boards/board`
 
-3. **Add Step 3 — Load Architectural References**: Expand to include project config files:
-   - Add `package.json`, `next.config.ts`/`next.config.js`, `tsconfig.json`, `vitest.config.ts`, `playwright.config.ts`
-   - Make these optional reads (not all projects have them) with a note: "Read whatever exists"
+3. **Make architectural references tech-stack-agnostic** (Step 3): The file already reads `docs/architecture.md`, `docs/decisions/`, `docs/TESTING.md`, plus config files (`package.json`, `next.config.ts`, etc.). Changes:
+   - Mark all config file reads as optional: "Read whatever exists in the project"
+   - Add note: "These paths refer to the **target project**, not the plugin. Projects may use different doc structures."
+   - Remove Next.js-specific assumptions — let `TECH_STACK` from `.env.claude` guide which config files to look for
 
-4. **Make Context7 mandatory in Step 6.0**: Change from optional/implicit to explicit mandatory requirement with `resolve-library-id` + `query-docs`
+4. **Make build/test commands tech-stack-aware** (Steps 6+): Replace hardcoded `npm` commands with tech-stack branching:
+   ```
+   If TECH_STACK=nextjs: npm run build, npm test, npm run test:e2e
+   If TECH_STACK=dotnet: dotnet build, dotnet test
+   If TECH_STACK=python: pytest, etc.
+   ```
+   Alternatively, read build/test commands from the project's `CLAUDE.md` or `package.json` scripts.
 
-5. **Keep Design Toolchain (Step 4.5) as-is**: Already present and well-structured. This is optional per feature type.
+5. **Make Context7 mandatory in Step 6.0**: Change from optional/implicit to explicit mandatory requirement with `resolve-library-id` + `query-docs`
 
-6. **Keep state update (Step 12) as-is**: Already correctly sets `next_command: /develop`
+6. **Keep Design Toolchain (Step 4.5) as-is**: Already present and well-structured. This is optional per feature type.
+
+7. **Keep state update (Step 12) as-is**: Already correctly sets `next_command: /develop`
 
 ### develop.md — Bring Up to Design Spec Parity
 
@@ -153,7 +182,7 @@ Source: MDT dynamics `develop.md` (765 lines). This is the largest change. Addit
 1. **Add YAML frontmatter** with `allowed-tools`:
    ```yaml
    ---
-   allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, Agent, Skill]
+   allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, Agent, Skill, TaskCreate, TaskUpdate, TaskList]
    ---
    ```
 
@@ -167,7 +196,7 @@ Source: MDT dynamics `develop.md` (765 lines). This is the largest change. Addit
 
 4. **Add worktree isolation to Phase 3**:
    - Phase 3.1: Ensure `.worktrees/` is git-ignored
-   - Phase 3.2: `git worktree add ".worktrees/$BRANCH_NAME" -b "$BRANCH_NAME"`
+   - Phase 3.2: Flatten branch name for worktree path to avoid nested dirs on Windows (e.g., `feature/blog-section` → `.worktrees/feature--blog-section`). Create with: `git worktree add ".worktrees/$FLAT_BRANCH" -b "$BRANCH_NAME"`
    - Phase 3.3: Install dependencies in worktree
    - Phase 3.4: Verify clean baseline (build + test)
    - All subsequent phases (4-9) work inside worktree
@@ -181,26 +210,31 @@ Source: MDT dynamics `develop.md` (765 lines). This is the largest change. Addit
    - Phase 2.4.4: Azure DevOps ticket alignment check
    - Phase 2.5: Auto-fix discrepancies (Minor: silent fix, Medium: fix + log, Major: stop and ask user)
 
-6. **Add Phase 6 — Code Simplification [MANDATORY]**:
+6. **Make build/test commands tech-stack-aware** (Phase 5 and all test re-runs):
+   - Read `TECH_STACK` from `.env.claude`
+   - Use appropriate commands: `npm run build`/`dotnet build`/`python -m pytest` etc.
+   - Or read build/test commands from the project's `CLAUDE.md`
+
+7. **Add Phase 6 — Code Simplification [MANDATORY]**:
    - Summarize context for handoff (modified files, purpose, complexity areas)
    - Run `Agent` with `subagent_type: "pr-review-toolkit:code-simplifier"`
    - Apply suggestions
    - Re-run build + tests
 
-7. **Add Phase 7 — PR Review [MANDATORY]**:
+8. **Add Phase 7 — PR Review [MANDATORY]**:
    - Run `Skill` with `skill: "pr-review-toolkit:review-pr"`
    - Fix HIGH and MEDIUM severity issues
    - Run code simplifier again (second pass)
    - Final build + test run
 
-8. **Update Phase 10 — Merge & Cleanup**:
+9. **Update Phase 10 — Merge & Cleanup**:
    - Return to main working directory from worktree
    - Merge feature branch to develop
    - Clean up plan files (`rm -f docs/plans/<feature-name>*.md`)
    - Remove worktree and delete feature branch
    - Add state update: `step: develop`, `status: ready-to-promote`, `next_command: /staging`
 
-9. **Add Workflow Enforcement Rules section**:
+10. **Add Workflow Enforcement Rules section**:
    - Task list is source of truth
    - Plan files are implementation guide
    - Phases 6 and 7 are mandatory
@@ -210,7 +244,7 @@ Source: MDT dynamics `develop.md` (765 lines). This is the largest change. Addit
    - Always work in worktree
    - Plan deviations must be documented
 
-10. **Add Error Recovery section**:
+11. **Add Error Recovery section**:
     - Never skip a failed phase
     - Ask user for direction (debug, revert, or documented exception)
     - Never proceed past quality gate with known failures
@@ -243,6 +277,30 @@ The plugin commands reference these external skills/tools. They are **not bundle
 - `ui-ux-pro-max` skill
 - `21st magic` MCP tool (component inspiration)
 - `context7` MCP server (library documentation)
+
+## Dependency Validation
+
+The plugin manifest does not support a `dependencies` field. Instead, `/validate-env` will check for required plugins and tools:
+
+- Verify `az` CLI is installed and DevOps extension is available
+- Check if `superpowers` plugin is installed (try to detect skills availability)
+- Check if `pr-review-toolkit` plugin is installed
+- Report missing dependencies with install instructions
+
+This makes `/validate-env` the single entry point for "is my setup complete?"
+
+## Versioning & Updates
+
+Follow semver (`MAJOR.MINOR.PATCH`):
+- **PATCH**: Bug fixes in commands, wording improvements
+- **MINOR**: New commands, new optional features, new template variants
+- **MAJOR**: Breaking changes to `.env.claude` schema, removed commands, changed workflow behavior
+
+To publish an update:
+1. Bump version in `.claude-plugin/plugin.json`
+2. Update version in marketplace's `marketplace.json`
+3. Push both repos
+4. Users update with: `/plugin update azure-devops-lifecycle@andrianopoulos-marketplace`
 
 ## README Update
 
