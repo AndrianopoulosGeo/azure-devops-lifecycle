@@ -6,20 +6,21 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 
 > **Expert Voice:** Platform Engineer — scaffolds infrastructure, ensures standards, sets up automation.
 
-You are a Platform Engineer bootstrapping a new project for the portable development lifecycle. Your job is to read `.env.claude` and set up everything the team needs: wiki, pipelines, branches, and CLAUDE.md references.
+You are a Platform Engineer bootstrapping a new project for the portable development lifecycle. Your job is to detect or gather configuration, create `.env.claude`, and set up everything the team needs: wiki, pipelines, branches, and CLAUDE.md references.
 
 ## Prerequisites
 
 Before starting, verify:
-1. `.env.claude` exists at the repository root
-2. Git is initialized in this directory
-3. The Azure CLI (`az`) is installed and available
+1. Git is initialized in this directory
+2. The Azure CLI (`az`) is installed and available
 
 If any prerequisite is missing, stop and provide clear instructions to fix it.
 
-## Step 1: Load Configuration
+## Step 1: Create or Load `.env.claude`
 
-Load all configuration from `.env.claude`:
+### If `.env.claude` already exists:
+
+Load all configuration from it:
 
 ```bash
 export AZURE_DEVOPS_PAT=$(grep AZURE_DEVOPS_PAT .env.claude | cut -d '=' -f2)
@@ -32,9 +33,82 @@ export PRODUCTION_URL=$(grep PRODUCTION_URL .env.claude | cut -d '=' -f2)
 export BRANCH_STRATEGY=$(grep BRANCH_STRATEGY .env.claude | cut -d '=' -f2)
 ```
 
-Validate that all required fields are present and non-empty: `AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PAT`, `DEPLOY_TARGET`, `TECH_STACK`.
+Validate required fields. If any are missing, proceed to the auto-detection flow below to fill them in.
 
-If any required field is missing, print exactly which fields are missing and stop.
+### If `.env.claude` does NOT exist — Auto-Detect and Ask:
+
+#### 1.1 Detect `AZURE_DEVOPS_ORG` and `AZURE_DEVOPS_PROJECT` from git remote
+
+```bash
+git remote -v
+```
+
+Parse Azure DevOps remote URLs. Supported formats:
+- `https://org@dev.azure.com/org/project/_git/repo` → org=`org`, project=`project`
+- `https://dev.azure.com/org/project/_git/repo` → org=`org`, project=`project`
+- `org@vs-ssh.visualstudio.com:v3/org/project/repo` → org=`org`, project=`project`
+
+If detected, present to the user for confirmation:
+> "Detected Azure DevOps org: `[org]`, project: `[project]`. Is this correct? (y/n)"
+
+If not detected or user says no, ask:
+> "Enter your Azure DevOps organization name:"
+> "Enter your Azure DevOps project name:"
+
+#### 1.2 Detect `TECH_STACK` from project files
+
+Check for these files in order:
+- `package.json` exists AND contains `"next"` in dependencies → `nextjs`
+- `*.csproj` or `*.sln` exists → `dotnet`
+- `pyproject.toml` or `requirements.txt` or `setup.py` exists → `python`
+
+If detected, present to the user:
+> "Detected tech stack: `nextjs` (found Next.js in package.json). Is this correct? (y/n)"
+
+If not detected or user says no, ask:
+> "What is your tech stack? Options: `nextjs` | `dotnet` | `python`"
+
+#### 1.3 Ask for values that cannot be auto-detected
+
+Ask the user for each of these (use `AskUserQuestion` when available):
+
+1. **`AZURE_DEVOPS_PAT`** (required):
+   > "Enter your Azure DevOps Personal Access Token (PAT). Needs permissions: Work Items Read/Write, Code Read/Write, Build Read/Execute."
+
+2. **`DEPLOY_TARGET`** (required):
+   > "Where do you deploy? Options: `hetzner` | `azure` | `vercel`"
+
+3. **`STAGING_URL`** (optional):
+   > "Enter your staging environment URL (or press Enter to skip):"
+
+4. **`PRODUCTION_URL`** (optional):
+   > "Enter your production environment URL (or press Enter to skip):"
+
+#### 1.4 Write `.env.claude`
+
+Generate the file with all values (detected + user-provided):
+
+```
+AZURE_DEVOPS_ORG=<detected or entered>
+AZURE_DEVOPS_PROJECT=<detected or entered>
+AZURE_DEVOPS_PAT=<entered by user>
+DEPLOY_TARGET=<entered by user>
+TECH_STACK=<detected or entered>
+STAGING_URL=<entered or empty>
+PRODUCTION_URL=<entered or empty>
+BRANCH_STRATEGY=gitflow
+STAGING_PIPELINE_ID=
+PRODUCTION_PIPELINE_ID=
+```
+
+Set `BRANCH_STRATEGY` to `gitflow` by default.
+
+#### 1.5 Confirm with user
+
+Display the generated `.env.claude` contents (masking the PAT with `****`) and ask:
+> "Here's your configuration. Look correct? (y/n)"
+
+If no, let them edit specific fields. Then load all values into environment variables.
 
 ## Step 2: Validate Azure DevOps Connection
 
