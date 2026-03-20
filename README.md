@@ -61,7 +61,9 @@ All commands are prefixed with `azure-devops-lifecycle:` when installed as a plu
 ### Knowledge
 | Command | Description |
 |---------|-------------|
-| `/azure-devops-lifecycle:wiki` | Manage project documentation wiki |
+| `/azure-devops-lifecycle:wiki` | Manage project wiki — status, update, auto, reset, review |
+| `/azure-devops-lifecycle:publish-wiki` | Publish local wiki to Azure DevOps Wiki |
+| `/azure-devops-lifecycle:update-claude-md` | Scan codebase and update CLAUDE.md with project context |
 
 ### Orchestration
 | Command | Description |
