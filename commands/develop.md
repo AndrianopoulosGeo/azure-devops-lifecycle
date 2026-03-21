@@ -29,7 +29,7 @@ Create these 10 tasks (no `blockedBy` needed — the checkpoints enforce sequent
 | 7 | Phase 7: PR Review [MANDATORY] | Running PR review |
 | 8 | Phase 8: Commit | Creating commits |
 | 9 | Phase 9: Close Tickets & Update Knowledge | Closing tickets and updating docs |
-| 10 | Phase 10: Merge to Develop | Merging feature branch to develop |
+| 10 | Phase 10: Push, PR, and CI Gate | Pushing branch, creating PR, and passing CI pipeline |
 
 **After creating all 10 tasks, call `TaskList` to confirm the full list is visible. Then proceed to Phase 1.**
 
@@ -373,6 +373,16 @@ Plan Revalidation Complete:
 
 **All implementation work happens in an isolated git worktree.** Your main working directory stays on `develop` so VS Code is never disrupted.
 
+### 3.0 Ensure Docker is running
+
+Check if Docker is running. If not, start Docker Desktop and wait for it to be ready:
+
+```bash
+docker info > /dev/null 2>&1 || (echo "Starting Docker Desktop..." && "/c/Program Files/Docker/Docker Desktop.exe" & sleep 30 && docker info > /dev/null 2>&1 || (echo "ERROR: Docker failed to start. Cannot proceed without Docker." && exit 1))
+```
+
+**If Docker cannot start, STOP the workflow.** Do not proceed to implementation without Docker.
+
 ### 3.1 Ensure worktree directory is git-ignored
 
 ```bash
@@ -703,51 +713,115 @@ Refs: #[FEATURE_ID]
 
 ---
 
-## PHASE 10: MERGE TO DEVELOP & WORKTREE CLEANUP
+## PHASE 10: PUSH, PR, AND CI GATE
 
-**Switch back to the main working directory for the merge.** The main directory is still on `develop`.
+**Push the feature branch, create a PR, and wait for CI to pass before completing the merge.**
 
-### 10.1 Return to main working directory and pull latest
+### 10.1 Push feature branch to remote
+
+From the worktree directory:
 
 ```bash
-cd "$(git worktree list | head -1 | awk '{print $1}')"
-git pull origin develop
+git push -u origin feature/[short-feature-name]
 ```
 
-### 10.2 Merge the feature branch
+### 10.2 Create PR to develop
 
 ```bash
-git merge feature/[short-feature-name]
+export AZURE_DEVOPS_PAT=$(grep AZURE_DEVOPS_PAT .env.claude | cut -d '=' -f2)
+export AZURE_DEVOPS_ORG=$(grep AZURE_DEVOPS_ORG .env.claude | cut -d '=' -f2)
+export AZURE_DEVOPS_PROJECT=$(grep AZURE_DEVOPS_PROJECT .env.claude | cut -d '=' -f2)
+export AZURE_DEVOPS_EXT_PAT=$AZURE_DEVOPS_PAT
+az devops configure --defaults organization=https://dev.azure.com/$AZURE_DEVOPS_ORG project="$AZURE_DEVOPS_PROJECT"
+
+az repos pr create \
+  --source-branch "feature/[short-feature-name]" \
+  --target-branch develop \
+  --title "feat([scope]): [feature title]" \
+  --description "[Brief description of the feature. Refs: #FEATURE_ID]" \
+  --auto-complete true \
+  --squash true \
+  --delete-source-branch true \
+  --output table
 ```
 
-If there are merge conflicts: analyze, resolve, re-run build + tests. If conflicts are complex, ask the user.
+Store the PR ID from the output for subsequent steps.
 
-### 10.3 Verify the merge
+### 10.3 CI Gate Loop (retry until green)
 
-Run the appropriate build/test commands for the project's `TECH_STACK`:
-- `nextjs`: `npm run build && npm run lint && npx tsc --noEmit`, then `npm test && npm run test:e2e`
-- `dotnet`: `dotnet build`, then `dotnet test`
-- `python`: `python -m pytest`
-
-Or read the exact commands from the project's `CLAUDE.md`.
-
-**All tests MUST pass. If any test fails, fix before proceeding.**
-
-### 10.4 Clean up temporary plan files
-
-Delete the working plan files — Azure DevOps tickets are the permanent record:
+Poll the pipeline status on the PR. When it completes, take action based on the result.
 
 ```bash
-rm -f docs/plans/<feature-name>-design.md docs/plans/<feature-name>.md
-git add docs/plans/ && git commit -m "chore: remove temporary plan files for <feature-name>"
+# Check PR pipeline status
+az repos pr show --id [PR_ID] --output json
 ```
 
-### 10.5 Remove worktree and delete the feature branch
+Look for the merge status and any policy violations (build/test pipeline).
 
-```bash
-FLAT_BRANCH=$(echo "feature/[short-feature-name]" | tr '/' '--')
-git worktree remove ".worktrees/$FLAT_BRANCH" --force
-git branch -d feature/[short-feature-name]
+**If pipeline PASSES:**
+
+1. Complete the PR (squash merge):
+   ```bash
+   az repos pr update --id [PR_ID] --status completed --squash true --delete-source-branch true --output table
+   ```
+
+2. Return to main working directory and pull develop:
+   ```bash
+   cd "$(git worktree list | head -1 | awk '{print $1}')"
+   git pull origin develop
+   ```
+
+3. Clean up temporary plan files:
+   ```bash
+   rm -f docs/plans/<feature-name>-design.md docs/plans/<feature-name>.md
+   git add docs/plans/ && git commit -m "chore: remove temporary plan files for <feature-name>" && git push origin develop
+   ```
+
+4. Remove worktree and delete local feature branch:
+   ```bash
+   FLAT_BRANCH=$(echo "feature/[short-feature-name]" | tr '/' '--')
+   git worktree remove ".worktrees/$FLAT_BRANCH" --force
+   git branch -D feature/[short-feature-name]
+   ```
+
+**If pipeline FAILS:**
+
+1. Fetch the pipeline run details and identify the failing stage/job:
+   ```bash
+   az pipelines runs list --branch "feature/[short-feature-name]" --top 1 --output table
+   az pipelines runs show --id [RUN_ID] --output json
+   ```
+
+2. Read the failure logs (test results, build errors):
+   ```bash
+   az devops invoke --area build --resource timeline --route-parameters project="$AZURE_DEVOPS_PROJECT" buildId=[RUN_ID] --output json
+   ```
+
+3. Analyze the root cause — identify the specific test failure, build error, or lint violation.
+
+4. Fix the issue in the worktree (`$WORKTREE_PATH`).
+
+5. Commit the fix:
+   ```bash
+   cd "$WORKTREE_PATH"
+   git add -A && git commit -m "fix([scope]): [description of CI fix]"
+   ```
+
+6. Push to the feature branch (this updates the PR automatically and re-triggers the pipeline):
+   ```bash
+   git push origin feature/[short-feature-name]
+   ```
+
+7. **Loop back** to polling the pipeline status.
+
+**Max retries: 3** — if the pipeline still fails after 3 fix attempts, **STOP and ask the user** for guidance. Present the failure history:
+```
+CI Gate — 3 attempts failed:
+  Attempt 1: [failing stage] — [root cause summary]
+  Attempt 2: [failing stage] — [root cause summary]
+  Attempt 3: [failing stage] — [root cause summary]
+
+Please review and advise how to proceed.
 ```
 
 ### 10.x Update Workflow State
@@ -772,7 +846,7 @@ Display a summary:
 
 - **Feature**: #[ID] - [Title] -> Resolved
 - **Plan files**: Used and cleaned up (Azure DevOps tickets are the permanent record)
-- **Branch**: `feature/[name]` -> merged to `develop`, worktree removed, branch deleted
+- **Branch**: `feature/[name]` -> PR to `develop`, CI passed, squash merged, worktree removed, branch deleted
 - **Stories completed**: [count] / [total]
 - **Tasks completed**: [count] / [total]
 - **Plan deviations**: [none / documented in Azure DevOps ticket comments]
@@ -793,7 +867,7 @@ Display a summary:
 5. **Build + tests run 3 times minimum.** Phase 5 (initial), Phase 6 (after simplification), Phase 7 (after PR review fixes).
 6. **Code Simplifier runs 2 times.** Phase 6 (first pass) and Phase 7 (after PR review fixes).
 7. **Always work on a feature branch in a worktree.** Never commit directly to develop/master/main. Never switch the main working directory away from `develop`.
-8. **Phase 10 merges to develop from the main directory.** Feature branch MUST be merged, worktree removed, and branch deleted.
+8. **Phase 10 pushes, creates a PR, and waits for CI.** The feature branch is pushed to remote, a PR is created to develop, and the CI pipeline must pass before the PR is completed. If CI fails, fix and push — the pipeline re-triggers automatically on the PR. Max 3 retry attempts before asking the user.
 9. **Plan deviations must be documented.** If you deviate from the plan, note what changed and why in the Azure DevOps ticket comments (Phase 9.1).
 10. **Azure DevOps is the single source of truth.** All history, decisions, and deviations go into ticket comments — not local files.
 11. **Plan files are temporary.** They exist only during development. Phase 10 cleans them up after merge.
