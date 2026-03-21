@@ -116,18 +116,9 @@ If the reviewer finds issues, fix them and re-request review.
 
 ## Step 10: Commit
 
-Follow Conventional Commits format:
+Invoke via the **`Skill` tool with `skill: "commit"`**.
 
-```bash
-git add -A
-git commit -m "fix(<scope>): <summary of fix>
-
-<body explaining why>
-
-Refs: #$TICKET_ID"
-```
-
-IMPORTANT: NEVER include Co-Authored-By or AI attribution.
+The `/commit` skill handles: Conventional Commits format, AI-attribution stripping, ticket references from the branch name, and auto-updating context management docs (`CLAUDE.md`, `docs/architecture.md`, `docs/TESTING.md`, `docs/wiki/`).
 
 ## Step 11: Merge to Develop
 

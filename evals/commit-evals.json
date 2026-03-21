@@ -1,0 +1,70 @@
+{
+  "skill_name": "commit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run /commit after making a change to a source file",
+      "expected_output": "A clean commit with Conventional Commits format and no AI attribution",
+      "expectations": [
+        "Commit message uses Conventional Commits format (<type>(<scope>): <summary>)",
+        "Commit message does NOT contain 'Co-Authored-By' with any AI reference",
+        "Commit message does NOT contain 'Claude', 'Anthropic', 'AI', 'GPT', or 'LLM'",
+        "Commit message does NOT contain 'noreply@anthropic.com'",
+        "Post-commit verification scans the message for forbidden patterns",
+        "A summary is displayed showing branch, commit hash, and docs updated"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Run /commit after adding a new component file in src/components/",
+      "expected_output": "Commit is created AND relevant context docs are checked and updated if stale",
+      "expectations": [
+        "CLAUDE.md is checked for stale Project Structure or Key Files sections",
+        "docs/architecture.md is checked for missing component documentation",
+        "docs/wiki/ pages are checked for stale feature documentation",
+        "Only docs with actually stale content are modified",
+        "Updated docs are staged and included in the same commit"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Run /commit after modifying test files only",
+      "expected_output": "Commit is created AND docs/TESTING.md is checked for updates",
+      "expectations": [
+        "docs/TESTING.md is checked for stale test patterns or structure",
+        "CLAUDE.md and docs/architecture.md are NOT unnecessarily modified",
+        "Commit type reflects test changes (e.g., test: or fix:)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Run /commit on a branch named feature/123-user-auth",
+      "expected_output": "Commit message includes Refs: #123",
+      "expectations": [
+        "Ticket ID 123 is extracted from the branch name",
+        "Commit body includes 'Refs: #123'",
+        "Commit message follows Conventional Commits format"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Run /commit when there are no changes",
+      "expected_output": "Message saying nothing to commit",
+      "expectations": [
+        "Output says working tree is clean or nothing to commit",
+        "No empty commit is created",
+        "No errors or crashes"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Run /commit fix the login bug",
+      "expected_output": "Commit uses the hint in the message",
+      "expectations": [
+        "The commit message incorporates the user's hint about fixing the login bug",
+        "Commit still follows Conventional Commits format",
+        "No AI attribution is present"
+      ]
+    }
+  ]
+}

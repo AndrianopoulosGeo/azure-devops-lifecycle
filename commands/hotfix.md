@@ -92,16 +92,11 @@ If build fails, fix it. A hotfix that doesn't build is worse than no fix.
 
 ## Step 9: Commit
 
-```bash
-git add -A
-git commit -m "hotfix(<scope>): <summary>
+Invoke via the **`Skill` tool with `skill: "commit"`** with a hint describing the hotfix:
 
-<root cause explanation>
+> `/commit hotfix(<scope>): <summary of root cause and fix>`
 
-Refs: #$TICKET_ID"
-```
-
-IMPORTANT: NEVER include Co-Authored-By or AI attribution.
+The `/commit` skill handles: Conventional Commits format, AI-attribution stripping, ticket references from the branch name, and auto-updating context management docs (`CLAUDE.md`, `docs/architecture.md`, `docs/TESTING.md`, `docs/wiki/`).
 
 ## Step 10: Merge to Master
 
