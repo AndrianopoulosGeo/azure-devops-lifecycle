@@ -113,30 +113,60 @@ The brainstorming skill should use this architectural context to:
 
 ---
 
-## STEP 4.5: DESIGN TOOLCHAIN (only if UI/design feature)
+## STEP 4.5: CONTEXT GATHERING (MANDATORY — always runs)
+
+**This step runs for EVERY feature, not just UI features.** Before writing any implementation plan, gather current documentation, best practices, and tool context for all technologies the feature touches.
+
+### 4.5.1 Fetch Library Documentation (Context7 — mandatory)
+
+Use `resolve-library-id` + `query-docs` to fetch up-to-date documentation for **every library and framework** the feature touches. This is NOT optional — plans written without verified library docs risk using deprecated or non-existent APIs.
+
+Examples by tech stack:
+- **nextjs**: Next.js, React, Tailwind CSS, Framer Motion, any ORM (Prisma, Drizzle)
+- **dotnet**: ASP.NET Core, Entity Framework, any NuGet packages the feature introduces
+- **python**: FastAPI/Django/Flask, SQLAlchemy, any pip packages the feature introduces
+- Any new libraries the feature introduces regardless of stack
+
+### 4.5.2 Best Practices Research (WebSearch — targeted)
+
+Search for current best practices on specific patterns the feature requires:
+- New integration patterns not yet used in the project
+- Complex architectural patterns (e.g., real-time features, file upload, caching, auth strategies)
+- Security considerations for the feature's domain
+- Accessibility (WCAG) guidelines if UI elements are involved
+
+### 4.5.3 MCP Coding Tools (use ALL available)
+
+Discover and use **any MCP server tools available in the session** that can provide coding context. These tools fill the context window with project-specific intelligence before writing the plan.
+
+**How to discover:** Check which MCP tools are available (they appear in system reminders). Use any that are relevant to the feature's tech stack.
+
+Common examples:
+| MCP Tool | When to use |
+|----------|-------------|
+| `context7` | Always — library documentation |
+| `pyright-lsp` | Python features — type checking, symbol resolution, diagnostics |
+| `typescript-lsp` | TypeScript features — type info, diagnostics, completions |
+| `microsoft-docs` | .NET / Azure features — official Microsoft documentation |
+| `playwright` | Features that need browser testing context |
+| Any language server | Read type signatures, find usages, check diagnostics for files the feature will modify |
+
+**The goal:** By the end of this step, you should have verified, current documentation for every API you'll use in the implementation plan. No guessing.
+
+### 4.5.4 Update the Spec
+
+Incorporate research findings into the approved brainstorming spec:
+- Add a **Libraries Verified** section listing libraries + versions confirmed
+- Add relevant API signatures, patterns, or constraints discovered
+- Flag any deprecated patterns or breaking changes that affect the design
+
+---
+
+## STEP 4.6: DESIGN TOOLCHAIN (only if UI/design feature)
 
 **Skip this step if the feature is NOT a UI/design feature.**
 
-When Design Toolchain is active, enrich the approved brainstorming spec with visual design research:
-
-### 4.5.1 Fetch Library Documentation (Context7)
-
-Use `resolve-library-id` + `query-docs` to fetch up-to-date documentation for every UI library the feature uses. At minimum:
-- Next.js, React, Framer Motion
-- Tailwind CSS
-- Any new UI libraries the feature introduces
-
-### 4.5.2 Official Documentation Research (WebSearch)
-
-Search for current best practices, patterns, and examples for the specific UI patterns needed:
-- Component architecture patterns for the chosen framework
-- Accessibility (WCAG) guidelines for the UI elements involved
-- Responsive design patterns relevant to the feature
-- Animation/transition best practices if applicable
-
-### 4.5.3 Design Inspiration & Component Research
-
-Use the available design MCP tools:
+When Design Toolchain is active, enrich the spec with **visual design research** using available design MCP tools:
 
 1. **`ui-ux-pro-max`** — Invoke the `Skill` tool with `skill: "ui-ux-pro-max"` for:
    - Design system decisions (color palette, typography, spacing)
@@ -153,13 +183,10 @@ Use the available design MCP tools:
    - Modern UI patterns and trends
    - Use `mcp__magic__21st_magic_component_builder` for building components with modern patterns
 
-### 4.5.4 Update the Spec
-
-Incorporate the design research findings into the brainstorming spec:
-- Add a **Visual Design** section with chosen styles, colors, typography
-- Add **Component Specifications** with exact component hierarchy and props
-- Add **Responsive Breakpoints** and layout behavior
-- Reference the context7 docs and design patterns that informed decisions
+Update the spec with:
+- **Visual Design** section with chosen styles, colors, typography
+- **Component Specifications** with exact component hierarchy and props
+- **Responsive Breakpoints** and layout behavior
 
 **Do NOT proceed until the user approves the enriched design spec.**
 
@@ -188,22 +215,9 @@ Include:
 
 ---
 
-## STEP 6: RESEARCH & CREATE IMPLEMENTATION PLAN (superpowers:writing-plans pattern)
+## STEP 6: CREATE IMPLEMENTATION PLAN (superpowers:writing-plans pattern)
 
-### 6.0 Fetch Up-to-Date Documentation (MANDATORY)
-
-Before writing the plan, gather current documentation for all technologies involved:
-
-**Context7 (mandatory):**
-Use `resolve-library-id` + `query-docs` to fetch docs for every library the feature touches. This is NOT optional — plans written without verified library docs risk using deprecated or non-existent APIs.
-
-**WebSearch (targeted):**
-Search for current best practices on specific patterns the feature requires:
-- New integration patterns not yet used in the project
-- Complex architectural patterns (e.g., real-time features, file upload, caching strategies)
-- Accessibility considerations for the feature's UI elements
-
-**Use these docs to inform the implementation plan — ensuring code examples, API usage, and patterns match the CURRENT versions of each library.**
+**Context gathering was completed in Step 4.5.** All library docs, best practices, and MCP tool context are already available. Use them to write the plan with verified, current API usage.
 
 ### 6.1 Write the Implementation Plan
 

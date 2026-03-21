@@ -250,28 +250,21 @@ Check each claim in the plan against reality:
 - **Existing patterns**: Do the patterns the plan follows match what the codebase currently uses? (e.g., if other components use a new pattern, the plan should too)
 - **Recent changes**: Have any relevant files been modified since the plan was written? (`git log --since` on referenced files)
 
-#### 2.4.2 Documentation Re-Verification (Context7)
+#### 2.4.2 Documentation & Tool Re-Verification
 
-Re-fetch up-to-date documentation for ALL libraries referenced in the plan:
+Re-verify all library and framework usage in the plan using **every available MCP coding tool**:
 
-Use `resolve-library-id` + `query-docs` for each library:
-- Next.js, React, Framer Motion
-- Tailwind CSS
-- Vitest, Testing Library, Playwright
-- Any other libraries the plan references
+**Context7 (mandatory):** Use `resolve-library-id` + `query-docs` for every library the plan references. Cross-check that API usage matches CURRENT docs. Flag deprecated methods, changed signatures, or new recommended approaches.
 
-**Cross-check**: Verify that API usage in the plan matches the CURRENT library docs. Flag any:
-- Deprecated methods or patterns
-- Changed API signatures
-- New recommended approaches that supersede what the plan uses
-- Missing required parameters or configuration
+**MCP coding tools (use ALL available):** Check which MCP tools are available in the session and use any relevant ones:
+- Language servers (pyright-lsp, typescript-lsp, etc.) — verify type signatures, check diagnostics on referenced files
+- `microsoft-docs` — for .NET/Azure API verification
+- Any other coding MCP tools — use them to validate the plan's assumptions
 
-#### 2.4.3 Best Practices Re-Verification (WebSearch)
-
-For complex or newer patterns referenced in the plan, do a targeted `WebSearch`:
-- Verify architectural patterns are still current best practice
-- Check for known issues or breaking changes in referenced library versions
-- Confirm accessibility patterns match current WCAG recommendations (if applicable)
+**WebSearch (targeted):** For complex or newer patterns, verify:
+- Architectural patterns are still current best practice
+- No known issues or breaking changes in referenced library versions
+- Accessibility patterns match current WCAG recommendations (if applicable)
 
 #### 2.4.4 Azure DevOps Ticket Alignment
 
@@ -300,7 +293,59 @@ Auto-fixed: [brief list of changes]
 Refs: #[FEATURE_ID]
 ```
 
-### 2.6 Revalidation Summary (informational only — no gate)
+### 2.6 Quality Evaluation (SOLID, Best Practices, Architecture)
+
+After revalidation and auto-fixes, evaluate the **entire implementation plan** for engineering quality. Use MCP coding tools, WebSearch, and Context7 to assess:
+
+#### 2.6.1 SOLID Principles Check
+
+Review every component, class, and module in the plan against SOLID:
+
+| Principle | What to check |
+|-----------|--------------|
+| **Single Responsibility** | Does each component/module do one thing? Are concerns separated (data fetching vs. rendering vs. business logic)? |
+| **Open/Closed** | Are components extensible without modification? Are hooks, props, or config used for variation instead of conditionals? |
+| **Liskov Substitution** | Can interfaces/abstractions be swapped without breaking consumers? |
+| **Interface Segregation** | Are interfaces/props lean? No component forced to depend on things it doesn't use? |
+| **Dependency Inversion** | Do high-level modules depend on abstractions, not concrete implementations? |
+
+#### 2.6.2 Best Practices Verification
+
+Use **WebSearch** and **MCP coding tools** to verify the plan follows current best practices:
+
+- **Framework-specific patterns**: Are we using the recommended patterns for the framework version? (e.g., Server Components vs Client Components in Next.js, async patterns in .NET, type hints in Python)
+- **Security**: Input validation, auth patterns, SQL injection prevention, XSS prevention — are they handled correctly?
+- **Performance**: Are there obvious performance anti-patterns? (N+1 queries, unnecessary re-renders, missing caching, unoptimized data fetching)
+- **Error handling**: Is error handling consistent and appropriate? Are edge cases covered?
+- **Testability**: Is the code structured for easy testing? Are dependencies injectable?
+
+#### 2.6.3 Architecture Alignment
+
+Cross-check the plan against `docs/architecture.md` and `docs/decisions/`:
+- Does the plan follow the project's established patterns?
+- If it introduces new patterns, are they justified and documented?
+- Are directory conventions respected?
+
+#### 2.6.4 Auto-Fix Quality Issues
+
+For each issue found:
+
+| Severity | Action |
+|----------|--------|
+| **Minor** (naming, small pattern improvements) | Fix automatically in the plan. |
+| **Medium** (SOLID violation with clear fix, missing error handling) | Fix automatically. Log for summary. |
+| **MAJOR** (fundamental architecture issue, security concern) | **STOP and ask the user.** |
+
+Commit any fixes:
+
+```
+docs(plans): quality evaluation fixes for <feature-name>
+
+Applied: [brief list of SOLID/best-practice improvements]
+Refs: #[FEATURE_ID]
+```
+
+### 2.7 Revalidation Summary (informational only — no gate)
 
 Log a brief summary to the console (do NOT wait for user confirmation unless MAJOR issues were found):
 
@@ -310,8 +355,11 @@ Plan Revalidation Complete:
 - Implementation plan: [N tasks] covering [scope summary]
 - Plan source: [pre-existing from /feature | generated in this session]
 - Auto-fixes applied: [count] ([brief descriptions])
+- Quality evaluation: [N issues found, M auto-fixed]
+- SOLID compliance: [pass | N violations fixed]
 - Major issues: [none | BLOCKED — see above]
-- Library docs verified: [list of libraries checked via Context7]
+- Library docs verified: [list of libraries checked]
+- MCP tools used: [list of tools used for verification]
 - Proceeding to Phase 3...
 ```
 
@@ -373,13 +421,18 @@ Or read the exact commands from the project's `CLAUDE.md`.
 az boards work-item update --id [FEATURE_ID] --state "Active" --output none
 ```
 
-### 3.6 Fetch library documentation (Context7)
+### 3.6 Fill context with MCP coding tools
 
-Use `resolve-library-id` + `query-docs` to fetch **up-to-date documentation** for every library/framework the implementation plan references. At minimum, query docs for the primary libraries (Next.js, React, Framer Motion, Tailwind CSS, plus any new ones the feature introduces).
+Use **every available MCP coding tool** to load context before implementation:
 
-### 3.7 Quick web research (if plan references new patterns)
+**Context7 (mandatory):** Use `resolve-library-id` + `query-docs` to fetch up-to-date documentation for every library/framework the implementation plan references.
 
-If the implementation plan introduces patterns, libraries, or integrations not previously used in the project, do a quick `WebSearch` for current best practices.
+**MCP coding tools (use ALL available):** Check which MCP tools are available in the session and use any relevant ones:
+- Language servers (pyright-lsp, typescript-lsp, etc.) — load type info, check diagnostics for files the plan will modify
+- `microsoft-docs` — for .NET/Azure features
+- Any other coding MCP tools — use them to build implementation context
+
+**WebSearch (targeted):** If the plan introduces patterns, libraries, or integrations not previously used in the project, search for current best practices.
 
 ### CHECKPOINT 3
 
@@ -410,9 +463,17 @@ For each task in the plan:
 
 2. **Follow the plan's steps exactly**: write failing test → verify it fails → implement → verify it passes → commit
 
-3. **Per-task research (only if needed).** If a task involves a design pattern, complex integration, or non-trivial architecture decision not fully covered in the plan, do a quick targeted `WebSearch`. Compare findings against the plan. If research reveals a clearly better approach, adopt it and note the deviation.
+3. **Per-task verification with MCP tools.** Before writing implementation code for each task:
+   - Use **Context7** to verify API signatures you're about to use
+   - Use **language server MCP tools** (pyright-lsp, typescript-lsp, etc.) if available — check types, get diagnostics, resolve symbols in files you're modifying
+   - Use **WebSearch** if the task involves a pattern, integration, or architecture decision not fully covered in the plan
+   - If tools reveal a better approach, adopt it and note the deviation
 
-4. **Verify patterns**: Before closing each task, confirm components follow the server vs. client rules from architecture.md and test patterns from docs/TESTING.md
+4. **Verify quality**: Before closing each task, confirm:
+   - Components follow SOLID principles (single responsibility, dependency inversion)
+   - Code follows the project's established patterns from architecture.md
+   - Test patterns match docs/TESTING.md conventions
+   - No security anti-patterns (unvalidated input, injection risks)
 
 5. Close the task:
    ```bash
