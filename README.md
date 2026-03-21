@@ -65,6 +65,11 @@ All commands are prefixed with `azure-devops-lifecycle:` when installed as a plu
 | `/azure-devops-lifecycle:publish-wiki` | Publish local wiki to Azure DevOps Wiki |
 | `/azure-devops-lifecycle:update-claude-md` | Scan codebase and update CLAUDE.md with project context |
 
+### Commit
+| Command | Description |
+|---------|-------------|
+| `/azure-devops-lifecycle:commit` | Smart commit — no AI attribution, auto-updates context docs |
+
 ### Orchestration
 | Command | Description |
 |---------|-------------|
@@ -77,6 +82,7 @@ All commands read from `.env.claude` at your project root.
 ### Required Fields
 - `AZURE_DEVOPS_ORG` — Your Azure DevOps organization
 - `AZURE_DEVOPS_PROJECT` — Project name
+- `AZURE_DEVOPS_REPO` — Repository name (auto-detected from git remote, used for per-repo code wikis)
 - `AZURE_DEVOPS_PAT` — Personal Access Token
 - `DEPLOY_TARGET` — `hetzner` | `azure` | `vercel`
 - `TECH_STACK` — `nextjs` | `dotnet` | `python`

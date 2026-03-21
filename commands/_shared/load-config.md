@@ -8,6 +8,7 @@ Before any Azure DevOps operation, load project configuration:
    export AZURE_DEVOPS_PAT=$(grep AZURE_DEVOPS_PAT .env.claude | cut -d '=' -f2)
    export AZURE_DEVOPS_ORG=$(grep AZURE_DEVOPS_ORG .env.claude | cut -d '=' -f2)
    export AZURE_DEVOPS_PROJECT=$(grep AZURE_DEVOPS_PROJECT .env.claude | cut -d '=' -f2)
+   export AZURE_DEVOPS_REPO=$(grep AZURE_DEVOPS_REPO .env.claude | cut -d '=' -f2)
    export DEPLOY_TARGET=$(grep DEPLOY_TARGET .env.claude | cut -d '=' -f2)
    export TECH_STACK=$(grep TECH_STACK .env.claude | cut -d '=' -f2)
    export STAGING_URL=$(grep STAGING_URL .env.claude | cut -d '=' -f2)
@@ -27,7 +28,7 @@ Before any Azure DevOps operation, load project configuration:
    > ".env.claude not found. Create one from the template: `cp templates/.env.claude.example .env.claude` and fill in your values. Then run `/init-project`."
 
 ### Required Fields
-These fields MUST be present and non-empty: `AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PAT`, `DEPLOY_TARGET`, `TECH_STACK`.
+These fields MUST be present and non-empty: `AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_REPO`, `AZURE_DEVOPS_PAT`, `DEPLOY_TARGET`, `TECH_STACK`.
 
 ### Optional Fields
 These fields may be empty: `STAGING_URL`, `PRODUCTION_URL`, `STAGING_PIPELINE_ID`, `PRODUCTION_PIPELINE_ID`, `BRANCH_STRATEGY` (defaults to `gitflow`).

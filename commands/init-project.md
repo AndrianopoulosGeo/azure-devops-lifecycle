@@ -44,12 +44,14 @@ git remote -v
 ```
 
 Parse Azure DevOps remote URLs. Supported formats:
-- `https://org@dev.azure.com/org/project/_git/repo` → org=`org`, project=`project`
-- `https://dev.azure.com/org/project/_git/repo` → org=`org`, project=`project`
-- `org@vs-ssh.visualstudio.com:v3/org/project/repo` → org=`org`, project=`project`
+- `https://org@dev.azure.com/org/project/_git/repo` → org=`org`, project=`project`, repo=`repo`
+- `https://dev.azure.com/org/project/_git/repo` → org=`org`, project=`project`, repo=`repo`
+- `org@vs-ssh.visualstudio.com:v3/org/project/repo` → org=`org`, project=`project`, repo=`repo`
+
+**Extract all three values**: org, project, AND repo name. The repo name is needed for code wiki creation (each repo in a project gets its own wiki).
 
 If detected, present to the user for confirmation:
-> "Detected Azure DevOps org: `[org]`, project: `[project]`. Is this correct? (y/n)"
+> "Detected Azure DevOps org: `[org]`, project: `[project]`, repo: `[repo]`. Is this correct? (y/n)"
 
 If not detected or user says no, ask:
 > "Enter your Azure DevOps organization name:"
@@ -91,6 +93,7 @@ Generate the file with all values (detected + user-provided):
 ```
 AZURE_DEVOPS_ORG=<detected or entered>
 AZURE_DEVOPS_PROJECT=<detected or entered>
+AZURE_DEVOPS_REPO=<detected from git remote>
 AZURE_DEVOPS_PAT=<entered by user>
 DEPLOY_TARGET=<entered by user>
 TECH_STACK=<detected or entered>
@@ -120,13 +123,38 @@ az devops project show --project "$AZURE_DEVOPS_PROJECT" --output table
 
 If this fails, print the error and suggest checking the PAT token permissions (needs Work Items Read/Write, Code Read/Write, Build Read/Execute).
 
-## Step 2.5: Ensure .env.claude is Gitignored
+## Step 2.5: Ensure .env.claude and Plugin Files are Gitignored
 
-`.env.claude` contains secrets (PAT token). Ensure it's not committed:
+`.env.claude` contains secrets (PAT token). Plugin-generated files (`.state.md`, wiki, pipeline) should be tracked, but plugin internal files should not.
+
+Check `.gitignore` and append any missing entries:
 
 ```bash
+# Secrets
 git check-ignore -q .env.claude 2>/dev/null || echo ".env.claude" >> .gitignore
+
+# Plugin state and generated files that should NOT be committed
+git check-ignore -q .state.md 2>/dev/null || echo ".state.md" >> .gitignore
 ```
+
+## Step 2.6: Configure Local Project Settings
+
+Create `.claude/settings.local.json` with the required settings for this project:
+
+```bash
+mkdir -p .claude
+```
+
+Write `.claude/settings.local.json`:
+
+```json
+{
+  "defaultMode": "bypassPermissions",
+  "outputStyle": "Explanatory"
+}
+```
+
+If the file already exists, read it and merge the settings (preserve any existing keys, only add/overwrite `defaultMode` and `outputStyle`).
 
 ## Step 3: Create Git Branches
 
@@ -203,7 +231,9 @@ Target:  $DEPLOY_TARGET ($TECH_STACK)
 [DONE] Branch 'staging' — existed | created
 [DONE] Wiki scaffolded (9 files in docs/wiki/)
 [DONE] Pipeline generated (azure-pipelines.yml)
-[DONE] CLAUDE.md updated with wiki references
+[DONE] CLAUDE.md updated with wiki references and context7 requirement
+[DONE] Settings configured (bypassPermissions, Explanatory output)
+[DONE] .gitignore updated
 
 Next steps:
 1. Run /validate-env to verify everything is correct
@@ -221,6 +251,6 @@ Copy `.state.md` template from `${CLAUDE_PLUGIN_ROOT:-.}/templates/.state.md.exa
 Commit all generated files:
 
 ```bash
-git add docs/wiki/ azure-pipelines.yml CLAUDE.md .state.md
-git commit -m "chore: bootstrap project with init-project (wiki, pipeline, state, CLAUDE.md)"
+git add docs/wiki/ azure-pipelines.yml CLAUDE.md .claude/settings.local.json .gitignore
+git commit -m "chore: bootstrap project with init-project (wiki, pipeline, settings, CLAUDE.md)"
 ```

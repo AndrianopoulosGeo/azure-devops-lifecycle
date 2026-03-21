@@ -26,6 +26,7 @@ Then load all fields:
 export AZURE_DEVOPS_PAT=$(grep AZURE_DEVOPS_PAT .env.claude | cut -d '=' -f2)
 export AZURE_DEVOPS_ORG=$(grep AZURE_DEVOPS_ORG .env.claude | cut -d '=' -f2)
 export AZURE_DEVOPS_PROJECT=$(grep AZURE_DEVOPS_PROJECT .env.claude | cut -d '=' -f2)
+export AZURE_DEVOPS_REPO=$(grep AZURE_DEVOPS_REPO .env.claude | cut -d '=' -f2)
 export DEPLOY_TARGET=$(grep DEPLOY_TARGET .env.claude | cut -d '=' -f2)
 export TECH_STACK=$(grep TECH_STACK .env.claude | cut -d '=' -f2)
 export STAGING_URL=$(grep STAGING_URL .env.claude | cut -d '=' -f2)
@@ -46,6 +47,7 @@ Run ALL checks, even if earlier ones fail. Collect all results and present them 
 | `.env.claude` exists | `test -f .env.claude` | [PASS] | [FAIL] → Create from template |
 | `AZURE_DEVOPS_ORG` set | `test -n "$AZURE_DEVOPS_ORG"` | [PASS] | [FAIL] → Add to .env.claude |
 | `AZURE_DEVOPS_PROJECT` set | `test -n "$AZURE_DEVOPS_PROJECT"` | [PASS] | [FAIL] → Add to .env.claude |
+| `AZURE_DEVOPS_REPO` set | `test -n "$AZURE_DEVOPS_REPO"` | [PASS] | [FAIL] → Add to .env.claude (repo name for code wiki) |
 | `AZURE_DEVOPS_PAT` set | `test -n "$AZURE_DEVOPS_PAT"` | [PASS] | [FAIL] → Add to .env.claude |
 | `DEPLOY_TARGET` valid | Value is one of: hetzner, azure, vercel | [PASS] | [FAIL] → Must be hetzner\|azure\|vercel |
 | `TECH_STACK` valid | Value is one of: nextjs, dotnet, python | [PASS] | [FAIL] → Must be nextjs\|dotnet\|python |
@@ -137,6 +139,7 @@ Present all results in a clean table:
 /validate-env — Environment Health Check
 ==========================================
 Project: $AZURE_DEVOPS_PROJECT
+Repo:    $AZURE_DEVOPS_REPO
 Org:     https://dev.azure.com/$AZURE_DEVOPS_ORG
 Target:  $DEPLOY_TARGET ($TECH_STACK)
 

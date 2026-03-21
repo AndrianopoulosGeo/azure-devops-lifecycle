@@ -31,6 +31,9 @@ The project wiki is the single source of truth for developer knowledge. **Always
 | **How to deploy** | `docs/wiki/deployment.md` — pipeline stages, environment config, rollback |
 | **Project decisions** | `docs/decisions/` — Architecture Decision Records (if they exist) |
 
+### Required Plugins & MCP Servers
+- **context7** MCP server — always use `resolve-library-id` + `query-docs` to fetch up-to-date library documentation before implementing with any framework or library. Never rely on training data for API signatures.
+
 ### Rules
 - When implementing features, ALWAYS check the relevant wiki section first
 - When making architectural decisions, update `docs/wiki/architecture.md`
