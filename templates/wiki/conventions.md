@@ -36,7 +36,7 @@ status: template
 
 ### Component Pattern
 
-```mermaid
+:::mermaid
 flowchart TD
     ServerComp[Server Component<br/>Default - data fetching, no interactivity]
     ClientComp[Client Component<br/>'use client' - interactivity, state, effects]
@@ -46,7 +46,7 @@ flowchart TD
 
     style ServerComp fill:#90EE90
     style ClientComp fill:#FFD700
-```
+:::
 
 | Pattern | When to use | Example |
 |---------|------------|---------|
@@ -83,7 +83,7 @@ try {
 
 ### Branch Naming
 
-```mermaid
+:::mermaid
 gitgraph
     commit id: "initial"
     branch develop
@@ -100,7 +100,7 @@ gitgraph
     commit id: "staging deploy"
     checkout main
     merge staging tag: "v1.0.0"
-```
+:::
 
 | Branch Type | Pattern | Example | From |
 |------------|---------|---------|------|
@@ -163,6 +163,44 @@ Format: `type(scope): description`
 - Responsive: mobile-first breakpoints
 
 <!-- Replace with actual coding standards -->
+
+## Wiki / Documentation Conventions
+
+### Mermaid Diagrams
+
+Azure DevOps wikis require the `:::mermaid` / `:::` block syntax. Standard ` ```mermaid ` fenced code blocks render as plain text.
+
+| Correct (Azure DevOps) | Incorrect (standard Markdown) |
+|------------------------|-------------------------------|
+| `:::mermaid` | ` ```mermaid ` |
+| `:::` (closing) | ` ``` ` (closing) |
+
+**Example:**
+
+```
+:::mermaid
+flowchart TD
+    A[Start] --> B[End]
+:::
+```
+
+All wiki pages in `docs/wiki/` must use this format. The `/wiki` command enforces this automatically.
+
+### Wiki Page Structure
+
+Every wiki page follows the same frontmatter pattern:
+
+```yaml
+---
+title: Page Title
+last_updated: YYYY-MM-DD
+status: template | draft | reviewed
+---
+```
+
+- `template` — placeholder content from scaffolding
+- `draft` — auto-generated from codebase analysis (via `/wiki auto` or `/wiki update`)
+- `reviewed` — manually verified by a developer
 
 ## Code Review Checklist
 

@@ -70,8 +70,32 @@ To update one: /wiki update <section-name>
 
 ## Quality Standard
 
+### Mermaid Diagram Syntax (CRITICAL)
+
+Azure DevOps wikis use a **non-standard Mermaid syntax**. Standard ` ```mermaid ` fenced code blocks will NOT render — they display as plain text.
+
+**Always use this format:**
+
+```
+:::mermaid
+flowchart TD
+    A --> B
+:::
+```
+
+**Never use this format:**
+
+````
+```mermaid
+flowchart TD
+    A --> B
+```
+````
+
+This applies to ALL diagram types: flowcharts, sequence diagrams, ER diagrams, gitgraphs, pie charts, etc.
+
 **Every wiki section MUST include:**
-- **Mermaid diagrams** — ER diagrams, sequence diagrams, flowcharts, architecture diagrams as appropriate
+- **Mermaid diagrams** (using `:::mermaid` / `:::` syntax) — ER diagrams, sequence diagrams, flowcharts, architecture diagrams as appropriate
 - **Detailed tables** — not just lists, but structured tables with all relevant columns
 - **Real code examples** — actual snippets from the codebase, not generic placeholders
 - **Relationship mapping** — how components connect, data flows, dependency chains
@@ -201,7 +225,7 @@ Analyze the codebase to generate **comprehensive, analytical content** for the s
 ### After updating any section:
 1. Update the `status` field in frontmatter to `draft`
 2. Update the `last_updated` field to today's date
-3. **Verify all Mermaid diagrams render correctly** (valid syntax)
+3. **Verify all Mermaid diagrams use `:::mermaid` / `:::` syntax** (NOT ` ```mermaid `) and have valid diagram syntax
 4. Report: section name, diagram count, table count, line count
 
 ## Subcommand: `auto`
