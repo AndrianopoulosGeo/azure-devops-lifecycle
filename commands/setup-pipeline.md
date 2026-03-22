@@ -186,13 +186,13 @@ ARMEOF
 Replace placeholders using `sed` with `|` delimiter (subscription names may contain `/`):
 
 ```bash
-sed -i "s|AZURE_SUBSCRIPTION_ID_PLACEHOLDER|$AZURE_SUBSCRIPTION_ID|g" /tmp/arm-sc.json
-sed -i "s|SUBSCRIPTION_NAME_PLACEHOLDER|$SUBSCRIPTION_NAME|g" /tmp/arm-sc.json
-sed -i "s|AZURE_TENANT_ID_PLACEHOLDER|$AZURE_TENANT_ID|g" /tmp/arm-sc.json
-sed -i "s|AZURE_CLIENT_ID_PLACEHOLDER|$AZURE_CLIENT_ID|g" /tmp/arm-sc.json
-sed -i "s|AZURE_CLIENT_SECRET_PLACEHOLDER|$AZURE_CLIENT_SECRET|g" /tmp/arm-sc.json
-sed -i "s|PROJECT_ID_PLACEHOLDER|$PROJECT_ID|g" /tmp/arm-sc.json
-sed -i "s|AZURE_DEVOPS_PROJECT_PLACEHOLDER|$AZURE_DEVOPS_PROJECT|g" /tmp/arm-sc.json
+sed -i'' "s|AZURE_SUBSCRIPTION_ID_PLACEHOLDER|$AZURE_SUBSCRIPTION_ID|g" /tmp/arm-sc.json
+sed -i'' "s|SUBSCRIPTION_NAME_PLACEHOLDER|$SUBSCRIPTION_NAME|g" /tmp/arm-sc.json
+sed -i'' "s|AZURE_TENANT_ID_PLACEHOLDER|$AZURE_TENANT_ID|g" /tmp/arm-sc.json
+sed -i'' "s|AZURE_CLIENT_ID_PLACEHOLDER|$AZURE_CLIENT_ID|g" /tmp/arm-sc.json
+sed -i'' "s|AZURE_CLIENT_SECRET_PLACEHOLDER|$AZURE_CLIENT_SECRET|g" /tmp/arm-sc.json
+sed -i'' "s|PROJECT_ID_PLACEHOLDER|$PROJECT_ID|g" /tmp/arm-sc.json
+sed -i'' "s|AZURE_DEVOPS_PROJECT_PLACEHOLDER|$AZURE_DEVOPS_PROJECT|g" /tmp/arm-sc.json
 ```
 
 Create the service connection via REST API:
@@ -259,11 +259,11 @@ ACREOF
 Replace placeholders:
 
 ```bash
-sed -i "s|ACR_LOGIN_SERVER_PLACEHOLDER|$AZURE_ACR_LOGIN_SERVER|g" /tmp/acr-sc.json
-sed -i "s|AZURE_CLIENT_ID_PLACEHOLDER|$AZURE_CLIENT_ID|g" /tmp/acr-sc.json
-sed -i "s|AZURE_CLIENT_SECRET_PLACEHOLDER|$AZURE_CLIENT_SECRET|g" /tmp/acr-sc.json
-sed -i "s|PROJECT_ID_PLACEHOLDER|$PROJECT_ID|g" /tmp/acr-sc.json
-sed -i "s|AZURE_DEVOPS_PROJECT_PLACEHOLDER|$AZURE_DEVOPS_PROJECT|g" /tmp/acr-sc.json
+sed -i'' "s|ACR_LOGIN_SERVER_PLACEHOLDER|$AZURE_ACR_LOGIN_SERVER|g" /tmp/acr-sc.json
+sed -i'' "s|AZURE_CLIENT_ID_PLACEHOLDER|$AZURE_CLIENT_ID|g" /tmp/acr-sc.json
+sed -i'' "s|AZURE_CLIENT_SECRET_PLACEHOLDER|$AZURE_CLIENT_SECRET|g" /tmp/acr-sc.json
+sed -i'' "s|PROJECT_ID_PLACEHOLDER|$PROJECT_ID|g" /tmp/acr-sc.json
+sed -i'' "s|AZURE_DEVOPS_PROJECT_PLACEHOLDER|$AZURE_DEVOPS_PROJECT|g" /tmp/acr-sc.json
 ```
 
 Create the service connection:
@@ -299,27 +299,27 @@ rm -f /tmp/acr-sc.json
 
 The variable group combines values from TWO sources: `.env.infra` (infrastructure) and `.env` (application).
 
-First, create the group with non-secret variables from `.env.infra`:
+First, check if the variable group already exists:
 
 ```bash
-az pipelines variable-group create \
-  --name "pipeline-variables" \
-  --variables \
-    AZURE_CLIENT_ID="$AZURE_CLIENT_ID" \
-    AZURE_TENANT_ID="$AZURE_TENANT_ID" \
-    AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID" \
-    AZURE_RESOURCE_GROUP="$AZURE_RESOURCE_GROUP" \
-    AZURE_ACR_LOGIN_SERVER="$AZURE_ACR_LOGIN_SERVER" \
-    AZURE_APP_SERVICE_STAGING="$AZURE_APP_SERVICE_STAGING" \
-    AZURE_APP_SERVICE_PRODUCTION="$AZURE_APP_SERVICE_PRODUCTION" \
-  --authorize false \
-  --output json
-```
-
-Get the variable group ID:
-
-```bash
-VG_ID=$(az pipelines variable-group list --query "[?name=='pipeline-variables'].id | [0]" -o tsv)
+VG_ID=$(az pipelines variable-group list --query "[?name=='${AZURE_DEVOPS_PROJECT}-secrets'].id | [0]" -o tsv 2>/dev/null)
+if [ -z "$VG_ID" ]; then
+  az pipelines variable-group create \
+    --name "${AZURE_DEVOPS_PROJECT}-secrets" \
+    --variables \
+      AZURE_CLIENT_ID="$AZURE_CLIENT_ID" \
+      AZURE_TENANT_ID="$AZURE_TENANT_ID" \
+      AZURE_SUBSCRIPTION_ID="$AZURE_SUBSCRIPTION_ID" \
+      AZURE_RESOURCE_GROUP="$AZURE_RESOURCE_GROUP" \
+      AZURE_ACR_LOGIN_SERVER="$AZURE_ACR_LOGIN_SERVER" \
+      AZURE_APP_SERVICE_STAGING="$AZURE_APP_SERVICE_STAGING" \
+      AZURE_APP_SERVICE_PRODUCTION="$AZURE_APP_SERVICE_PRODUCTION" \
+    --authorize false \
+    --output json
+  VG_ID=$(az pipelines variable-group list --query "[?name=='${AZURE_DEVOPS_PROJECT}-secrets'].id | [0]" -o tsv)
+else
+  echo "Variable group already exists (ID: $VG_ID). Skipping creation."
+fi
 echo "Variable Group ID: $VG_ID"
 ```
 
@@ -336,9 +336,11 @@ az pipelines variable-group variable create \
 Now add application variables from `.env`. Detect secrets by name pattern:
 
 ```bash
-while IFS='=' read -r key value; do
+while IFS= read -r line; do
   # Skip empty lines and comments
-  [[ -z "$key" || "$key" =~ ^# ]] && continue
+  [[ -z "$line" || "$line" =~ ^# ]] && continue
+  key="${line%%=*}"
+  value="${line#*=}"
   # Trim whitespace
   key=$(echo "$key" | xargs)
   value=$(echo "$value" | xargs)
@@ -493,7 +495,7 @@ trigger:
 
 variables:
   - template: pipelines/variables/common.yml
-  - group: pipeline-variables
+  - group: ${AZURE_DEVOPS_PROJECT}-secrets
 
 stages:
   - stage: Build
@@ -611,10 +613,9 @@ Replace `IMAGE_NAME_PLACEHOLDER` with `$IMAGE_NAME` and `ACR_LOGIN_SERVER_PLACEH
 steps:
   - script: |
       BUILD_DATE=$(git log -1 --format=%cI)
-      COMMIT_SHA=$(Build.SourceVersion)
       docker build \
         --build-arg BUILD_DATE="$BUILD_DATE" \
-        --build-arg COMMIT_SHA="$COMMIT_SHA" \
+        --build-arg COMMIT_SHA="$(Build.SourceVersion)" \
         -t $(acrLoginServer)/$(imageRepository):$(tag) \
         -f $(dockerfilePath) \
         .
@@ -723,7 +724,7 @@ This script reconstructs the `.env` file from pipeline variables at runtime. Gen
 # Reconstructs .env from Azure DevOps pipeline variables at deploy time
 set -e
 
-cat > .env <<'ENVEOF'
+cat > .env <<ENVEOF
 ```
 
 For each variable in the project's `.env`, add a line like:
@@ -775,15 +776,20 @@ git push origin develop
 ### 6.1 Create Pipeline in Azure DevOps
 
 ```bash
-PIPELINE_RESPONSE=$(az pipelines create \
-  --name "$AZURE_DEVOPS_REPO" \
-  --repository "$AZURE_DEVOPS_REPO" \
-  --repository-type tfsgit \
-  --branch develop \
-  --yml-path azure-pipelines.yml \
-  --skip-first-run true \
-  --output json)
-PIPELINE_ID=$(echo "$PIPELINE_RESPONSE" | jq -r '.id')
+PIPELINE_ID=$(az pipelines show --name "$AZURE_DEVOPS_REPO" --query "id" -o tsv 2>/dev/null)
+if [ -z "$PIPELINE_ID" ]; then
+  PIPELINE_RESPONSE=$(az pipelines create \
+    --name "$AZURE_DEVOPS_REPO" \
+    --repository "$AZURE_DEVOPS_REPO" \
+    --repository-type tfsgit \
+    --branch develop \
+    --yml-path azure-pipelines.yml \
+    --skip-first-run true \
+    --output json)
+  PIPELINE_ID=$(echo "$PIPELINE_RESPONSE" | jq -r '.id')
+else
+  echo "Pipeline already exists (ID: $PIPELINE_ID). Skipping creation."
+fi
 echo "Pipeline ID: $PIPELINE_ID"
 ```
 
@@ -924,8 +930,13 @@ Common issues and fixes:
 ### 7.4 Update Pipeline IDs in .env.claude
 
 ```bash
-sed -i "s|^STAGING_PIPELINE_ID=.*|STAGING_PIPELINE_ID=$PIPELINE_ID|" .env.claude
-sed -i "s|^PRODUCTION_PIPELINE_ID=.*|PRODUCTION_PIPELINE_ID=$PIPELINE_ID|" .env.claude
+grep -q "^STAGING_PIPELINE_ID=" .env.claude \
+  && sed -i'' "s|^STAGING_PIPELINE_ID=.*|STAGING_PIPELINE_ID=$PIPELINE_ID|" .env.claude \
+  || echo "STAGING_PIPELINE_ID=$PIPELINE_ID" >> .env.claude
+
+grep -q "^PRODUCTION_PIPELINE_ID=" .env.claude \
+  && sed -i'' "s|^PRODUCTION_PIPELINE_ID=.*|PRODUCTION_PIPELINE_ID=$PIPELINE_ID|" .env.claude \
+  || echo "PRODUCTION_PIPELINE_ID=$PIPELINE_ID" >> .env.claude
 ```
 
 ## Phase 8: Update Documentation + Summary
@@ -976,7 +987,7 @@ Pipeline URL: $ORG_URL/$AZURE_DEVOPS_PROJECT/_build?definitionId=$PIPELINE_ID
 [DONE] Hetzner agent — online
 [DONE] ARM service connection (ID: $ARM_SC_ID) — created | detected
 [DONE] ACR service connection (ID: $ACR_SC_ID) — created | detected
-[DONE] Variable group 'pipeline-variables' (ID: $VG_ID) — created with N variables
+[DONE] Variable group '${AZURE_DEVOPS_PROJECT}-secrets' (ID: $VG_ID) — created with N variables
 [DONE] Environment 'staging' (ID: $STAGING_ENV_ID) — created
 [DONE] Environment 'production' (ID: $PRODUCTION_ENV_ID) — created with approval gate
 [DONE] Pipeline YAML generated (8 files)
