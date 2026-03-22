@@ -192,22 +192,7 @@ For each wiki template file in `${CLAUDE_PLUGIN_ROOT:-.}/templates/wiki/`:
 If `docs/wiki/` already exists and has non-template content (status != "template"), ask the user before overwriting:
 > "Wiki files already exist and appear to have content. Overwrite? (y/n)"
 
-## Step 5: Generate Azure Pipeline
-
-Based on `DEPLOY_TARGET` and `TECH_STACK`, select the right pipeline template:
-
-| TECH_STACK | DEPLOY_TARGET | Template |
-|-----------|--------------|----------|
-| nextjs | hetzner | `${CLAUDE_PLUGIN_ROOT:-.}/templates/pipelines/azure-pipelines-nextjs-hetzner.yml` |
-| nextjs | vercel | `${CLAUDE_PLUGIN_ROOT:-.}/templates/pipelines/azure-pipelines-nextjs-vercel.yml` |
-| dotnet | azure | `${CLAUDE_PLUGIN_ROOT:-.}/templates/pipelines/azure-pipelines-dotnet-azure.yml` |
-
-1. Copy the matching template to `azure-pipelines.yml` at the repository root
-2. If no exact match exists, warn the user and skip pipeline generation:
-   > "No pipeline template for TECH_STACK=$TECH_STACK + DEPLOY_TARGET=$DEPLOY_TARGET. You'll need to create azure-pipelines.yml manually."
-3. If `azure-pipelines.yml` already exists, ask before overwriting
-
-## Step 6: Update CLAUDE.md
+## Step 5: Update CLAUDE.md
 
 Read the `${CLAUDE_PLUGIN_ROOT:-.}/templates/claude-md-wiki-block.md` template and append it to the project's `CLAUDE.md`.
 
@@ -215,7 +200,7 @@ Read the `${CLAUDE_PLUGIN_ROOT:-.}/templates/claude-md-wiki-block.md` template a
 2. Check if the wiki reference block already exists (search for "## Project Wiki Reference") — if so, skip
 3. Append the wiki reference block to the end of `CLAUDE.md`
 
-## Step 7: Summary Report
+## Step 6: Summary Report
 
 Print a summary of everything that was done:
 
@@ -230,7 +215,7 @@ Target:  $DEPLOY_TARGET ($TECH_STACK)
 [DONE] Branch 'develop' — existed | created
 [DONE] Branch 'staging' — existed | created
 [DONE] Wiki scaffolded (9 files in docs/wiki/)
-[DONE] Pipeline generated (azure-pipelines.yml)
+[TODO] Run /setup-infra then /setup-pipeline to configure CI/CD
 [DONE] CLAUDE.md updated with wiki references and context7 requirement
 [DONE] Settings configured (bypassPermissions, Explanatory output)
 [DONE] .gitignore updated
@@ -238,19 +223,20 @@ Target:  $DEPLOY_TARGET ($TECH_STACK)
 Next steps:
 1. Run /validate-env to verify everything is correct
 2. Populate wiki sections with /wiki auto
-3. Push azure-pipelines.yml and configure pipeline in Azure DevOps
-4. Start developing with /feature or /quick-fix
+3. Run /setup-infra to provision Azure resources
+4. Run /setup-pipeline to create the CI/CD pipeline
+5. Start developing with /feature or /quick-fix
 ```
 
-## Step 8: Initialize State File
+## Step 7: Initialize State File
 
 Copy `.state.md` template from `${CLAUDE_PLUGIN_ROOT:-.}/templates/.state.md.example` to the repository root. Set all fields to their default idle values. This enables `/next` auto-advance from the first workflow.
 
-## Step 9: Commit
+## Step 8: Commit
 
 Commit all generated files:
 
 ```bash
-git add docs/wiki/ azure-pipelines.yml CLAUDE.md .claude/settings.local.json .gitignore
-git commit -m "chore: bootstrap project with init-project (wiki, pipeline, settings, CLAUDE.md)"
+git add docs/wiki/ CLAUDE.md .claude/settings.local.json .gitignore
+git commit -m "chore: bootstrap project with init-project (wiki, settings, CLAUDE.md)"
 ```
