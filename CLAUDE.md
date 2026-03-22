@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A Claude Code plugin (`azure-devops-lifecycle`) that provides 13 slash commands for full development lifecycle automation with Azure DevOps and Gitflow branching. Distributed via a custom marketplace (`AndrianopoulosGeo/claude-marketplace`).
+A Claude Code plugin (`azure-devops-lifecycle`) that provides 15 slash commands for full development lifecycle automation with Azure DevOps and Gitflow branching. Distributed via a custom marketplace (`AndrianopoulosGeo/claude-marketplace`).
 
 ## Architecture
 
@@ -43,6 +43,14 @@ Commands delegate to each other and to external plugins:
 | `/quick-fix`, `/hotfix` | `superpowers:test-driven-development`, `superpowers:verification-before-completion` |
 | `/feature` | `superpowers:brainstorming`, `superpowers:writing-plans` |
 | `/next` | Reads `.state.md` and invokes the appropriate next command |
+| `/setup-infra` | (standalone — Azure CLI only) |
+| `/setup-pipeline` | `/setup-infra` for `.env.infra`, Playwright (fallback for approval gate) |
+
+### Project Setup (one-time)
+
+```
+/init-project → /setup-infra → /setup-pipeline
+```
 
 ### Workflow Tracks
 
@@ -65,6 +73,8 @@ Hotfix:    /hotfix (direct to master, then backmerge to develop)
 ### Configuration
 
 All commands read from `.env.claude` (never hardcoded values). Required fields: `AZURE_DEVOPS_ORG`, `AZURE_DEVOPS_PROJECT`, `AZURE_DEVOPS_PAT`, `DEPLOY_TARGET`, `TECH_STACK`.
+
+For Azure deployments, `/setup-infra` generates `.env.infra` with Service Principal credentials and resource names. `/setup-pipeline` reads both files.
 
 ### State Management
 
