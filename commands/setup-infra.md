@@ -127,19 +127,37 @@ Present the naming defaults to the user for confirmation:
 
 If the user wants custom names, let them override each one individually.
 
-### 2.4 Create or Detect Each Resource
+### 2.4 Determine Runtime from TECH_STACK
+
+Before creating App Services, resolve the runtime based on `TECH_STACK`:
+
+```bash
+case "$TECH_STACK" in
+  nextjs)  RUNTIME="NODE:20-lts" ;;
+  dotnet)  RUNTIME="DOTNETCORE:8.0" ;;
+  python)  RUNTIME="PYTHON:3.12" ;;
+  *)       echo "ERROR: Unknown TECH_STACK=$TECH_STACK"; exit 1 ;;
+esac
+echo "Using runtime: $RUNTIME"
+```
+
+### 2.5 Create or Detect Each Resource
 
 For each resource, check if it exists first. Report whether it was **detected** (already existed) or **created** (newly provisioned).
+
+**If any creation command below fails, stop immediately and report the error to the user.** Do not proceed to the next resource.
 
 **Resource Group:**
 ```bash
 az group show --name "$RG_NAME" --output none 2>/dev/null && echo "EXISTS" || az group create --name "$RG_NAME" --location "$REGION" --output table
 ```
+If creation fails, stop and report the error to the user.
 
 **Azure Container Registry:**
 ```bash
 az acr show --name "$ACR_NAME" --output none 2>/dev/null && echo "EXISTS" || az acr create --resource-group "$RG_NAME" --name "$ACR_NAME" --sku Basic --output table
 ```
+If creation fails, stop and report the error to the user.
 
 Get the ACR login server:
 ```bash
@@ -150,20 +168,21 @@ ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query "loginServer" -o tsv)
 ```bash
 az appservice plan show --name "$PLAN_NAME" --resource-group "$RG_NAME" --output none 2>/dev/null && echo "EXISTS" || az appservice plan create --name "$PLAN_NAME" --resource-group "$RG_NAME" --sku B1 --is-linux --output table
 ```
+If creation fails, stop and report the error to the user.
 
 **Staging App Service:**
 ```bash
-az webapp show --name "$APP_STAGING" --resource-group "$RG_NAME" --output none 2>/dev/null && echo "EXISTS" || az webapp create --name "$APP_STAGING" --resource-group "$RG_NAME" --plan "$PLAN_NAME" --runtime "NODE:20-lts" --output table
+az webapp show --name "$APP_STAGING" --resource-group "$RG_NAME" --output none 2>/dev/null && echo "EXISTS" || az webapp create --name "$APP_STAGING" --resource-group "$RG_NAME" --plan "$PLAN_NAME" --runtime "$RUNTIME" --output table
 ```
+If creation fails, stop and report the error to the user.
 
 **Production App Service:**
 ```bash
-az webapp show --name "$APP_PRODUCTION" --resource-group "$RG_NAME" --output none 2>/dev/null && echo "EXISTS" || az webapp create --name "$APP_PRODUCTION" --resource-group "$RG_NAME" --plan "$PLAN_NAME" --runtime "NODE:20-lts" --output table
+az webapp show --name "$APP_PRODUCTION" --resource-group "$RG_NAME" --output none 2>/dev/null && echo "EXISTS" || az webapp create --name "$APP_PRODUCTION" --resource-group "$RG_NAME" --plan "$PLAN_NAME" --runtime "$RUNTIME" --output table
 ```
+If creation fails, stop and report the error to the user.
 
-> **Note:** Adjust the `--runtime` flag based on `TECH_STACK` — use `NODE:20-lts` for nextjs, `DOTNETCORE:8.0` for dotnet, `PYTHON:3.12` for python.
-
-### 2.5 Report
+### 2.6 Report
 
 Print a summary of what was detected vs created:
 
@@ -176,9 +195,48 @@ Resource Status:
   Production App ($APP_PRODUCTION):  detected | created
 ```
 
-## Phase 3: Create Service Principal
+## Phase 3: Create or Reuse Service Principal
 
-Create a service principal scoped to the resource group:
+### 3.1 Check for Existing Service Principal
+
+Before creating a new SP, check if one already exists:
+
+```bash
+EXISTING_SP_APP_ID=$(az ad sp list --display-name "sp-$SLUG-deploy" --query "[0].appId" -o tsv)
+```
+
+**If the SP already exists** (`EXISTING_SP_APP_ID` is not empty), warn the user:
+
+> "A service principal `sp-$SLUG-deploy` already exists (appId: `$EXISTING_SP_APP_ID`). The original client secret cannot be recovered.
+>
+> Choose one:
+> 1. **Enter existing secret** — if you still have it (e.g., from a previous `.env.infra`)
+> 2. **Rotate credentials** — create a new secret for the existing SP
+> 3. **Recreate SP** — delete and recreate the service principal entirely"
+
+- **Option 1 (enter existing secret):** Prompt for the secret. Set `CLIENT_ID=$EXISTING_SP_APP_ID`, `CLIENT_SECRET=<user input>`, and retrieve `TENANT_ID` with:
+  ```bash
+  TENANT_ID=$(az ad sp show --id "$EXISTING_SP_APP_ID" --query "appOwnerOrganizationId" -o tsv)
+  ```
+  Skip to ACR role assignment below.
+
+- **Option 2 (rotate):** Reset the credential:
+  ```bash
+  SP_OUTPUT=$(az ad sp credential reset --id "$EXISTING_SP_APP_ID" --output json)
+  CLIENT_ID=$(echo "$SP_OUTPUT" | jq -r '.appId')
+  CLIENT_SECRET=$(echo "$SP_OUTPUT" | jq -r '.password')
+  TENANT_ID=$(echo "$SP_OUTPUT" | jq -r '.tenant')
+  ```
+
+- **Option 3 (recreate):** Delete and create fresh:
+  ```bash
+  az ad sp delete --id "$EXISTING_SP_APP_ID"
+  ```
+  Then proceed to step 3.2 below.
+
+### 3.2 Create New Service Principal (if needed)
+
+Only run this if no SP exists or the user chose Option 3 above:
 
 ```bash
 SP_OUTPUT=$(az ad sp create-for-rbac --name "sp-$SLUG-deploy" --role Contributor --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME" --output json)
@@ -192,7 +250,9 @@ CLIENT_SECRET=$(echo "$SP_OUTPUT" | jq -r '.password')
 TENANT_ID=$(echo "$SP_OUTPUT" | jq -r '.tenant')
 ```
 
-Grant ACR roles to the service principal:
+### 3.3 Grant ACR Roles
+
+Grant ACR roles to the service principal (idempotent — safe to run even if already assigned):
 
 ```bash
 ACR_ID=$(az acr show --name "$ACR_NAME" --query "id" -o tsv)
@@ -200,25 +260,27 @@ az role assignment create --assignee "$CLIENT_ID" --role AcrPush --scope "$ACR_I
 az role assignment create --assignee "$CLIENT_ID" --role AcrPull --scope "$ACR_ID" --output none
 ```
 
-Report what was created:
+Report what was done:
 
-> "Service principal `sp-$SLUG-deploy` created with Contributor role on `$RG_NAME` and AcrPush + AcrPull on `$ACR_NAME`."
+> "Service principal `sp-$SLUG-deploy` ready with Contributor role on `$RG_NAME` and AcrPush + AcrPull on `$ACR_NAME`."
 
 ## Phase 4: Generate `.env.infra`
 
 Write the `.env.infra` file with all provisioned values:
 
-```
-AZURE_CLIENT_ID=<from SP>
-AZURE_CLIENT_SECRET=<from SP>
-AZURE_TENANT_ID=<from SP>
-AZURE_SUBSCRIPTION_ID=<from az account>
-AZURE_RESOURCE_GROUP=<resource group name>
-AZURE_ACR_NAME=<ACR name>
-AZURE_ACR_LOGIN_SERVER=<ACR login server>
-AZURE_APP_SERVICE_STAGING=<staging app name>
-AZURE_APP_SERVICE_PRODUCTION=<production app name>
-INFRA_PROJECT=<from Phase 0>
+```bash
+cat > .env.infra <<EOF
+AZURE_CLIENT_ID=$CLIENT_ID
+AZURE_CLIENT_SECRET=$CLIENT_SECRET
+AZURE_TENANT_ID=$TENANT_ID
+AZURE_SUBSCRIPTION_ID=$SUBSCRIPTION_ID
+AZURE_RESOURCE_GROUP=$RG_NAME
+AZURE_ACR_NAME=$ACR_NAME
+AZURE_ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER
+AZURE_APP_SERVICE_STAGING=$APP_STAGING
+AZURE_APP_SERVICE_PRODUCTION=$APP_PRODUCTION
+INFRA_PROJECT=$INFRA_PROJECT
+EOF
 ```
 
 Display the contents with the secret masked:
