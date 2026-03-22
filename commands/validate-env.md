@@ -36,6 +36,25 @@ export STAGING_PIPELINE_ID=$(grep STAGING_PIPELINE_ID .env.claude | cut -d '=' -
 export PRODUCTION_PIPELINE_ID=$(grep PRODUCTION_PIPELINE_ID .env.claude | cut -d '=' -f2)
 ```
 
+### Load `.env.infra` (if DEPLOY_TARGET=azure)
+
+If `DEPLOY_TARGET` is `azure`, attempt to load `.env.infra`:
+
+```bash
+if [ "$DEPLOY_TARGET" = "azure" ] && [ -f .env.infra ]; then
+  export AZURE_CLIENT_ID=$(grep AZURE_CLIENT_ID .env.infra | cut -d '=' -f2)
+  export AZURE_CLIENT_SECRET=$(grep AZURE_CLIENT_SECRET .env.infra | cut -d '=' -f2)
+  export AZURE_TENANT_ID=$(grep AZURE_TENANT_ID .env.infra | cut -d '=' -f2)
+  export AZURE_SUBSCRIPTION_ID=$(grep AZURE_SUBSCRIPTION_ID .env.infra | cut -d '=' -f2)
+  export AZURE_RESOURCE_GROUP=$(grep AZURE_RESOURCE_GROUP .env.infra | cut -d '=' -f2)
+  export AZURE_ACR_NAME=$(grep AZURE_ACR_NAME .env.infra | cut -d '=' -f2)
+  export AZURE_ACR_LOGIN_SERVER=$(grep AZURE_ACR_LOGIN_SERVER .env.infra | cut -d '=' -f2)
+  export AZURE_APP_SERVICE_STAGING=$(grep AZURE_APP_SERVICE_STAGING .env.infra | cut -d '=' -f2)
+  export AZURE_APP_SERVICE_PRODUCTION=$(grep AZURE_APP_SERVICE_PRODUCTION .env.infra | cut -d '=' -f2)
+  export INFRA_PROJECT=$(grep INFRA_PROJECT .env.infra | cut -d '=' -f2)
+fi
+```
+
 ## Checks
 
 Run ALL checks, even if earlier ones fail. Collect all results and present them together at the end.
@@ -93,8 +112,8 @@ To check if a wiki file is populated vs template, read the `status` field in the
 
 | Check | Pass | Fail |
 |-------|------|------|
-| `azure-pipelines.yml` exists | [PASS] | [FAIL] → Run /init-project |
-| Pipeline matches DEPLOY_TARGET | [PASS] | [WARN] → Pipeline may be stale, regenerate with /init-project |
+| `azure-pipelines.yml` exists | [PASS] | [FAIL] → Run /setup-pipeline |
+| Pipeline matches DEPLOY_TARGET | [PASS] | [WARN] → Pipeline may be stale, regenerate with /setup-pipeline |
 
 If `STAGING_PIPELINE_ID` is set in `.env.claude`, also verify it exists in Azure DevOps:
 ```bash
@@ -115,6 +134,7 @@ Same for `PRODUCTION_PIPELINE_ID`. If the API call fails, report:
 | Check | Pass | Fail |
 |-------|------|------|
 | `.env.claude` is gitignored | `grep -q '.env.claude' .gitignore` | [WARN] → Add `.env.claude` to .gitignore to prevent secret leaks |
+| `.env.infra` is gitignored | `grep -q '.env.infra' .gitignore` | [WARN] → Add `.env.infra` to .gitignore |
 
 ### 8. State File Check
 
@@ -130,6 +150,51 @@ Same for `PRODUCTION_PIPELINE_ID`. If the API call fails, report:
 | DevOps extension | `az extension show --name azure-devops 2>/dev/null` | [PASS] | [FAIL] → Run: `az extension add --name azure-devops` |
 | `superpowers` plugin | Check if superpowers skills are loadable | [PASS] | [WARN] → Install: `/plugin install superpowers@claude-plugins-official` |
 | `pr-review-toolkit` plugin | Check if pr-review-toolkit skills are loadable | [PASS] | [WARN] → Install: `/plugin install pr-review-toolkit@claude-plugins-official` |
+
+### 10. Infrastructure Checks (DEPLOY_TARGET=azure only)
+
+> Skip this entire section if `DEPLOY_TARGET` is not `azure`.
+
+| Check | Command | Pass | Fail |
+|-------|---------|------|------|
+| `.env.infra` exists | `test -f .env.infra` | [PASS] | [FAIL] → Run /setup-infra |
+| `AZURE_CLIENT_ID` set | `test -n "$AZURE_CLIENT_ID"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_CLIENT_SECRET` set | `test -n "$AZURE_CLIENT_SECRET"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_TENANT_ID` set | `test -n "$AZURE_TENANT_ID"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_SUBSCRIPTION_ID` set | `test -n "$AZURE_SUBSCRIPTION_ID"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_RESOURCE_GROUP` set | `test -n "$AZURE_RESOURCE_GROUP"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_ACR_NAME` set | `test -n "$AZURE_ACR_NAME"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_ACR_LOGIN_SERVER` set | `test -n "$AZURE_ACR_LOGIN_SERVER"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_APP_SERVICE_STAGING` set | `test -n "$AZURE_APP_SERVICE_STAGING"` | [PASS] | [FAIL] → Add to .env.infra |
+| `AZURE_APP_SERVICE_PRODUCTION` set | `test -n "$AZURE_APP_SERVICE_PRODUCTION"` | [PASS] | [FAIL] → Add to .env.infra |
+| `INFRA_PROJECT` set | `test -n "$INFRA_PROJECT"` | [PASS] | [FAIL] → Add to .env.infra |
+| SP credentials valid | `az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID` | [PASS] | [FAIL] → Check SP credentials in .env.infra |
+
+### 11. Hetzner Agent Check
+
+> NOTE: `az pipelines agent list` does NOT exist. Use `az devops invoke` instead.
+
+```bash
+# Check if the Hetzner pool exists and agent is online
+az devops invoke --area distributedtask --resource pools --route-parameters --output json 2>/dev/null
+```
+
+| Check | Pass | Fail |
+|-------|------|------|
+| Hetzner pool exists | [PASS] | [WARN] → Hetzner agent pool not found in Azure DevOps |
+| Agent is online | [PASS] | [WARN] → Hetzner agent is offline, check the self-hosted agent |
+
+### 12. Pipeline Resource Checks (DEPLOY_TARGET=azure only)
+
+> Skip this entire section if `DEPLOY_TARGET` is not `azure` or if `STAGING_PIPELINE_ID` is not set.
+
+| Check | Command | Pass | Fail |
+|-------|---------|------|------|
+| Service connection: Azure-ServiceConnection | `az devops service-endpoint list --output json` | [PASS] | [FAIL] → Create Azure-ServiceConnection in Azure DevOps |
+| Service connection: ACR-ServiceConnection | `az devops service-endpoint list --output json` | [PASS] | [FAIL] → Create ACR-ServiceConnection in Azure DevOps |
+| Variable group: ${AZURE_DEVOPS_PROJECT}-secrets | `az pipelines variable-group list --output json` | [PASS] | [FAIL] → Create variable group in Azure DevOps |
+| Environment: staging | `az devops invoke --area distributedtask --resource environments --output json` | [PASS] | [FAIL] → Create staging environment in Azure DevOps |
+| Environment: production | `az devops invoke --area distributedtask --resource environments --output json` | [PASS] | [FAIL] → Create production environment in Azure DevOps |
 
 ## Output Format
 
@@ -186,9 +251,26 @@ Plugin Dependencies
 
 Security
   [PASS] .env.claude is gitignored
+  [PASS] .env.infra is gitignored
+
+Infrastructure (DEPLOY_TARGET=azure)
+  [PASS] .env.infra exists
+  [PASS] All required fields present (10/10)
+  [PASS] Service principal credentials valid
+
+Agent
+  [PASS] Hetzner pool exists
+  [WARN] Agent is offline → Check the self-hosted agent
+
+Pipeline Resources (DEPLOY_TARGET=azure)
+  [PASS] Azure-ServiceConnection exists
+  [PASS] ACR-ServiceConnection exists
+  [PASS] Variable group: MDT dynamics-secrets exists
+  [PASS] Environment: staging exists
+  [FAIL] Environment: production missing → Create production environment in Azure DevOps
 
 ==========================================
-Result: 14 PASS | 1 FAIL | 6 WARN
+Result: 18 PASS | 2 FAIL | 7 WARN
 
 Action Required:
   1. [FAIL] Create staging branch: git branch staging
