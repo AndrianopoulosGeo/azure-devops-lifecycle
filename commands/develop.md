@@ -392,7 +392,8 @@ git check-ignore -q .worktrees 2>/dev/null || echo ".worktrees/" >> .gitignore &
 ### 3.2 Create feature branch in a worktree
 
 ```bash
-git pull origin develop
+git fetch origin develop
+git reset --hard origin/develop
 BRANCH_NAME="feature/[short-feature-name]"
 FLAT_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '--')
 WORKTREE_PATH=".worktrees/$FLAT_BRANCH"
@@ -765,16 +766,16 @@ Look for the merge status and any policy violations (build/test pipeline).
    az repos pr update --id [PR_ID] --status completed --squash true --delete-source-branch true --output table
    ```
 
-2. Return to main working directory and pull develop:
+2. Return to main working directory and sync local develop to origin (protected branch — never push directly):
    ```bash
    cd "$(git worktree list | head -1 | awk '{print $1}')"
-   git pull origin develop
+   git fetch origin develop
+   git reset --hard origin/develop
    ```
 
-3. Clean up temporary plan files:
+3. Clean up temporary plan files locally (do NOT commit or push — develop is protected):
    ```bash
    rm -f docs/plans/<feature-name>-design.md docs/plans/<feature-name>.md
-   git add docs/plans/ && git commit -m "chore: remove temporary plan files for <feature-name>" && git push origin develop
    ```
 
 4. Remove worktree and delete local feature branch:
